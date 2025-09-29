@@ -215,6 +215,17 @@ class RuleParser:
                     file.write(str(rule) + '\n')
         except Exception as e:
             print(f"Ошибка при сохранении файла: {e}")
+    
+    def extract_objects_and_values(self, rules: List[Rule]) -> dict[str, set[str]]:
+        """
+        Возвращает словарь {объект: множество возможных значений}
+        """
+        mapping = {}
+        for rule in rules:
+            for cond in rule.conditions:
+                mapping.setdefault(cond.object_name, set()).add(cond.value)
+            mapping.setdefault(rule.result_object, set()).add(rule.result_value)
+        return mapping
 
 
 # Пример использования

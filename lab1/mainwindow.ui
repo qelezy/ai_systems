@@ -41,7 +41,11 @@
          </widget>
         </item>
         <item>
-         <widget class="QTextEdit" name="result"/>
+         <widget class="QTextEdit" name="result">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
