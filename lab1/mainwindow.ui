@@ -115,12 +115,26 @@
           </property>
          </widget>
         </item>
+        <item>
+         <widget class="QPushButton" name="deleteConditionBtn">
+          <property name="text">
+           <string>Удалить условие</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
        <widget class="QPushButton" name="recommendItemBtn">
         <property name="text">
          <string>Рекомендация предмета</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="helpBtn">
+        <property name="text">
+         <string>Справка</string>
         </property>
        </widget>
       </item>

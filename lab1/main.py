@@ -94,7 +94,12 @@ class MainWindow(QMainWindow):
         self.ui.saveRulesBtn.clicked.connect(self.save_rules)
         self.ui.loadRulesBtn.clicked.connect(self.load_rules_from_file)
         self.ui.addConditionBtn.clicked.connect(self.add_condition)
+        # удаление одного условия из списка текущих условий
+        if hasattr(self.ui, 'deleteConditionBtn'):
+            self.ui.deleteConditionBtn.clicked.connect(self.delete_condition)
         self.ui.recommendItemBtn.clicked.connect(self.recommend_item)
+        if hasattr(self.ui, 'helpBtn'):
+            self.ui.helpBtn.clicked.connect(self.show_help)
 
     def setup_rules_table(self):
         """Настраивает таблицу для отображения правил"""
@@ -222,6 +227,17 @@ class MainWindow(QMainWindow):
             # добавляем в QListWidget
             self.ui.currentConditions.addItem(condition_text)
 
+    def delete_condition(self):
+        """Удаляет выбранное условие из списка текущих условий"""
+        selected_items = self.ui.currentConditions.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Удаление", "Выберите условие для удаления")
+            return
+
+        item = selected_items[0]
+        row = self.ui.currentConditions.row(item)
+        self.ui.currentConditions.takeItem(row)
+
     def recommend_item(self):
         """Выдает рекомендацию предмета на основе выбранных условий"""
         # Собираем выбранные условия из QListWidget
@@ -280,6 +296,24 @@ class MainWindow(QMainWindow):
             self.ui.result.setPlainText(recommendation)
         else:
             self.ui.result.setPlainText("Подходящее правило не найдено")
+
+    def show_help(self):
+        """Показывает окно со справкой по терминам"""
+        help_text = (
+            "Термины:\n\n"
+            "танк — чемпион с высоким запасом здоровья и защитой;\n"
+            "ап — сила умений (магический урон);\n"
+            "ад — физический урон от автоатак и навыков;\n"
+            "контроль — эффекты оглушения, замедления, обездвиживания и т.п.;\n"
+            "крит — критический урон/шанс критического удара;\n"
+            "хил — лечение, восстановление здоровья;\n"
+            "щит — эффекты, дающие поглощающую оболочку;\n"
+            "энч — энчантер (поддержка с усилениями/исцелением);\n"
+            "мало_хп — чемпионы с низким запасом здоровья;\n"
+            "леталити — пробивание/игнорирование брони;\n"
+            "бурст — высокий взрывной урон за короткое время."
+        )
+        QMessageBox.information(self, "Справка", help_text)
 
 
 def main():
