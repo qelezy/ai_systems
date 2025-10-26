@@ -99,26 +99,26 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <item>
-         <widget class="QLabel" name="currentConditionsLabel">
+         <widget class="QLabel" name="currentFactsLabel">
           <property name="text">
-           <string>Текущие условия</string>
+           <string>Известные факты</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QListWidget" name="currentConditions"/>
+         <widget class="QListWidget" name="currentFacts"/>
         </item>
         <item>
-         <widget class="QPushButton" name="addConditionBtn">
+         <widget class="QPushButton" name="addFactBtn">
           <property name="text">
-           <string>Добавить условие</string>
+           <string>Добавить факт</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="deleteConditionBtn">
+         <widget class="QPushButton" name="deleteFactBtn">
           <property name="text">
-           <string>Удалить условие</string>
+           <string>Удалить факт</string>
           </property>
          </widget>
         </item>
@@ -139,9 +139,9 @@
        </layout>
       </item>
       <item>
-       <widget class="QPushButton" name="recommendItemBtn">
+       <widget class="QPushButton" name="proveGoalBtn">
         <property name="text">
-         <string>Рекомендация предмета</string>
+         <string>Доказать цель</string>
         </property>
        </widget>
       </item>

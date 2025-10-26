@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QComboBox, QLineEdit, QPushButton, QWidget
 )
 
-class AddConditionDialog(QDialog):
+class AddFactDialog(QDialog):
     def __init__(self, available_data, parent=None):
         super().__init__(parent)
         self.available_data = available_data
@@ -71,7 +71,8 @@ class AddConditionDialog(QDialog):
         op = self.operator_combo.currentText()
         if self.value_edit:
             val = self.value_edit.text().strip()
-        else:
+        elif self.value_combo:
             val = self.value_combo.currentText()
+        else:
+            val = ""
         return obj, op, val
-

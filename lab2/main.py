@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBo
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, Qt, QAbstractTableModel, QModelIndex
 from rule_parser import RuleParser, Rule, Condition, ComparisonOperator
-from add_condition_dialog import AddConditionDialog
+from add_fact_dialog import AddFactDialog
 from inference_engine import InferenceEngine
 import re
 
@@ -95,13 +95,11 @@ class MainWindow(QMainWindow):
         self.ui.deleteRuleBtn.clicked.connect(self.delete_rule)
         self.ui.saveRulesBtn.clicked.connect(self.save_rules)
         self.ui.loadRulesBtn.clicked.connect(self.load_rules_from_file)
-        self.ui.addConditionBtn.clicked.connect(self.add_condition)
-        # удаление одного условия из списка текущих условий
-        if hasattr(self.ui, 'deleteConditionBtn'):
-            self.ui.deleteConditionBtn.clicked.connect(self.delete_condition)
-        self.ui.recommendItemBtn.clicked.connect(self.recommend_item)
-        # Изменяем текст кнопки
-        self.ui.recommendItemBtn.setText("Выполнить обратный вывод")
+        self.ui.addFactBtn.clicked.connect(self.add_fact)
+        # удаление одного факта из списка текущих фактов
+        if hasattr(self.ui, 'deleteFactBtn'):
+            self.ui.deleteFactBtn.clicked.connect(self.delete_fact)
+        self.ui.proveGoalBtn.clicked.connect(self.prove_goal)
         if hasattr(self.ui, 'helpBtn'):
             self.ui.helpBtn.clicked.connect(self.show_help)
 
@@ -225,29 +223,29 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить правила:\n{e}")
 
-    def add_condition(self):
+    def add_fact(self):
         # открываем диалог
-        dlg = AddConditionDialog(self.available_data, self)
+        dlg = AddFactDialog(self.available_data, self)
         if dlg.exec():  # если нажали OK
             obj, op, val = dlg.get_condition()
             condition_text = f"{obj}{op}{val}"
             
             # добавляем в QListWidget
-            self.ui.currentConditions.addItem(condition_text)
+            self.ui.currentFacts.addItem(condition_text)
 
-    def delete_condition(self):
-        """Удаляет выбранное условие из списка текущих условий"""
-        selected_items = self.ui.currentConditions.selectedItems()
+    def delete_fact(self):
+        """Удаляет выбранный факт из списка текущих фактов"""
+        selected_items = self.ui.currentFacts.selectedItems()
         if not selected_items:
-            QMessageBox.warning(self, "Удаление", "Выберите условие для удаления")
+            QMessageBox.warning(self, "Удаление", "Выберите факт для удаления")
             return
 
         item = selected_items[0]
-        row = self.ui.currentConditions.row(item)
-        self.ui.currentConditions.takeItem(row)
+        row = self.ui.currentFacts.row(item)
+        self.ui.currentFacts.takeItem(row)
 
-    def recommend_item(self):
-        """Реализует обратный вывод — от цели к условиям"""
+    def prove_goal(self):
+        """Реализует обратный вывод — от цели к фактам"""
         # Получаем цель из поля ввода
         goal_text = self.ui.goalInput.text().strip()
         if not goal_text:
@@ -269,10 +267,10 @@ class MainWindow(QMainWindow):
             goal_object = goal_object.strip()
             goal_value = goal_value.strip()
 
-        # Собираем известные факты (условия) из QListWidget
+        # Собираем известные факты из QListWidget
         facts = {}
-        for i in range(self.ui.currentConditions.count()):
-            item_text = self.ui.currentConditions.item(i).text()  # пример: "количество_врагов_ап>=3"
+        for i in range(self.ui.currentFacts.count()):
+            item_text = self.ui.currentFacts.item(i).text()  # пример: "количество_врагов_ап>=3"
             match = re.match(r'(.+?)(>=|<=|=|>|<)(.+)', item_text)
             if not match:
                 continue
@@ -282,7 +280,7 @@ class MainWindow(QMainWindow):
 
             # Пробуем привести значение к числу, если возможно
             try:
-                val = float(val)
+                val = int(val)
             except ValueError:
                 pass
 
@@ -297,20 +295,20 @@ class MainWindow(QMainWindow):
             trace = engine.get_inference_trace()
             final_facts = engine.get_facts()
             
-            result_text = f"ЦЕЛЬ ДОКАЗАНА: {goal_object}={goal_value}\n\n"
+            result_text = f"ЦЕЛЬ ДОКАЗАНА: {goal_object} = {goal_value}\n\n"
             result_text += "Трассировка вывода:\n"
-            result_text += "=" * 50 + "\n"
+            result_text += "═" * 60 + "\n\n"
             for step, trace_line in enumerate(trace, 1):
                 result_text += f"{step}. {trace_line}\n"
             
-            result_text += "\n" + "=" * 50 + "\n"
+            result_text += "\n" + "═" * 60 + "\n"
             result_text += "Финальная база знаний:\n"
             for obj, val in final_facts.items():
                 result_text += f"- {obj} = {val}\n"
         else:
-            result_text = f"ЦЕЛЬ НЕ ДОКАЗАНА: {goal_object}={goal_value}\n\n"
+            result_text = f"ЦЕЛЬ НЕ ДОКАЗАНА: {goal_object} = {goal_value}\n\n"
             result_text += "Трассировка вывода:\n"
-            result_text += "=" * 50 + "\n"
+            result_text += "═" * 60 + "\n"
             trace = engine.get_inference_trace()
             for step, trace_line in enumerate(trace, 1):
                 result_text += f"{step}. {trace_line}\n"
@@ -325,9 +323,9 @@ class MainWindow(QMainWindow):
             "СИСТЕМА ОБРАТНОГО ВЫВОДА\n\n"
             "Как использовать:\n"
             "1. Загрузите правила из файла\n"
-            "2. Добавьте известные факты в раздел 'Текущие условия'\n"
+            "2. Добавьте известные факты в соответствующий раздел\n"
             "3. Введите цель (только значение, например: предметы_против_ап)\n"
-            "4. Нажмите 'Выполнить обратный вывод'\n\n"
+            "4. Нажмите 'Доказать цель'\n\n"
             "Примеры целей:\n"
             "• предметы_против_ап\n"
             "• предметы_против_танк\n"

@@ -10,7 +10,7 @@ class InferenceEngine:
         self.proven_goals = set()  # Кэш доказанных целей
         self.inference_trace = []  # Трассировка вывода
 
-    def prove(self, goal_object: str, goal_value: str) -> bool:
+    def prove(self, goal_object: str, goal_value: str, parent_rule_index: int = 0) -> bool:
         """Пытается доказать цель: object=value"""
         goal_key = f"{goal_object}={goal_value}"
 
@@ -20,23 +20,23 @@ class InferenceEngine:
         # Проверяем, есть ли уже такой факт в базе знаний
         if self.facts.get(goal_object) == goal_value:
             self.proven_goals.add(goal_key)
-            self.inference_trace.append(f"Факт уже известен: {goal_object}={goal_value}")
+            self.inference_trace.append(f"Факт уже известен: {goal_object} = {goal_value}")
             return True
 
         # Ищем правила, ведущие к цели
-        for rule in self.rules:
+        for rule_index, rule in enumerate(self.rules, 1):
             if rule.result_object == goal_object and rule.result_value == goal_value:
-                self.inference_trace.append(f"Проверяем правило: {rule}")
-                if self._evaluate_conditions(rule):
+                self.inference_trace.append(f"Проверяем правило {rule_index}: {rule}")
+                if self._evaluate_conditions(rule, rule_index):
                     # Добавляем новый факт в базу знаний
                     self.facts[goal_object] = goal_value
                     self.proven_goals.add(goal_key)
-                    self.inference_trace.append(f"Добавлен новый факт: {goal_object}={goal_value}")
+                    self.inference_trace.append(f"Правило {rule_index} выполнено! Добавлен факт: {goal_object} = {goal_value}")
                     return True
 
         return False
 
-    def _evaluate_conditions(self, rule: Rule) -> bool:
+    def _evaluate_conditions(self, rule: Rule, rule_index: int) -> bool:
         """Проверяет выполнение условий"""
         results = []
 
@@ -45,19 +45,19 @@ class InferenceEngine:
 
             if fact_value is None:
                 # Если факт неизвестен — пробуем доказать как новую цель
-                self.inference_trace.append(f"Неизвестен факт {cond.object_name}, пытаемся доказать {cond.object_name}={cond.value}")
-                if self.prove(cond.object_name, cond.value):
+                self.inference_trace.append(f"Неизвестен факт '{cond.object_name}' для правила {rule_index}, пытаемся доказать: {cond.object_name} = {cond.value}")
+                if self.prove(cond.object_name, cond.value, rule_index):
                     fact_value = self.facts.get(cond.object_name)
-                    self.inference_trace.append(f"Успешно доказан факт: {cond.object_name}={fact_value}")
+                    self.inference_trace.append(f"Успешно доказан факт для правила {rule_index}: {cond.object_name} = {fact_value}")
                 else:
-                    self.inference_trace.append(f"Не удалось доказать факт: {cond.object_name}={cond.value}")
+                    self.inference_trace.append(f"Не удалось доказать факт для правила {rule_index}: {cond.object_name} = {cond.value}")
                     return False
 
-            if not self._compare(fact_value, cond.operator, cond.value):
-                self.inference_trace.append(f"Условие не выполнено: {cond.object_name}{cond.operator.value}{cond.value} (факт: {fact_value})")
+            if fact_value is None or not self._compare(fact_value, cond.operator, cond.value):
+                self.inference_trace.append(f"Условие правила {rule_index} не выполнено: {cond.object_name} {cond.operator.value} {cond.value} (факт: {fact_value})")
                 results.append(False)
             else:
-                self.inference_trace.append(f"Условие выполнено: {cond.object_name}{cond.operator.value}{cond.value}")
+                self.inference_trace.append(f"Условие правила {rule_index} выполнено: {cond.object_name} {cond.operator.value} {cond.value}")
                 results.append(True)
 
         # Обрабатываем логические операторы (И / ИЛИ)
@@ -83,18 +83,23 @@ class InferenceEngine:
         try:
             left_val = float(left)
             right_val = float(right)
+            # Если оба значения числовые, сравниваем как числа
+            if operator == ComparisonOperator.EQUALS:
+                return left_val == right_val
+            elif operator == ComparisonOperator.GREATER_EQUAL:
+                return left_val >= right_val
+            elif operator == ComparisonOperator.LESS_EQUAL:
+                return left_val <= right_val
+            elif operator == ComparisonOperator.GREATER:
+                return left_val > right_val
+            elif operator == ComparisonOperator.LESS:
+                return left_val < right_val
         except ValueError:
+            # Если не удалось преобразовать в числа, сравниваем как строки
             left_val = str(left)
             right_val = str(right)
-
-        if operator == ComparisonOperator.EQUALS:
-            return left_val == right_val
-        elif operator == ComparisonOperator.GREATER_EQUAL:
-            return left_val >= right_val
-        elif operator == ComparisonOperator.LESS_EQUAL:
-            return left_val <= right_val
-        elif operator == ComparisonOperator.GREATER:
-            return left_val > right_val
-        elif operator == ComparisonOperator.LESS:
-            return left_val < right_val
+            if operator == ComparisonOperator.EQUALS:
+                return left_val == right_val
+            # Для строковых значений другие операторы не поддерживаются
+            return False
         return False
