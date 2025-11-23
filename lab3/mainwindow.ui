@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1400</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Система нечёткого логического вывода</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QWidget" name="leftPanel" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QGroupBox" name="systemGroup">
+         <property name="title">
+          <string>Выбор системы</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <widget class="QLabel" name="systemLabel">
+            <property name="text">
+             <string>Тип системы:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="systemCombo">
+            <item>
+             <property name="text">
+              <string>1 вход / 1 выход</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Несколько входов / 1 выход</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Модель Мамдани (2 входа)</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="inputGroup">
+         <property name="title">
+          <string>Входные данные</string>
+         </property>
+         <layout class="QVBoxLayout" name="inputLayout"/>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="paramsGroup">
+         <property name="title">
+          <string>Параметры вывода</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QLabel" name="mechanismLabel">
+            <property name="text">
+             <string>Механизм вывода (только для 1 вход/1 выход):</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="mechanismCombo">
+            <item>
+             <property name="text">
+              <string>Уровни истинности</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Композиция Max-Min</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Композиция Max-Product</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="implLabel">
+            <property name="text">
+             <string>Тип импликации:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="implCombo">
+            <item>
+             <property name="text">
+              <string>Мамдани</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Ларсен</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="compLabel">
+            <property name="text">
+             <string>Тип композиции:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="compCombo">
+            <item>
+             <property name="text">
+              <string>Max-Min</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Max-Product</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="aggLabel">
+            <property name="text">
+             <string>Тип агрегации:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="aggCombo">
+            <item>
+             <property name="text">
+              <string>Max</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Sum</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="compareImplBtn">
+         <property name="text">
+          <string>Сравнить импликации</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="calculateBtn">
+         <property name="text">
+          <string>Вычислить</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="resultGroup">
+         <property name="title">
+          <string>Результаты</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_4">
+          <item>
+           <widget class="QTextEdit" name="resultText">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="loadBtn">
+         <property name="text">
+          <string>Загрузить данные</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QWidget" name="rightPanel" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,1">
+       <item>
+        <widget class="QLabel" name="plotLabel">
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Визуализация</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="plotWidgetContainer" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>600</width>
+           <height>400</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
