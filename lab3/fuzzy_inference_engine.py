@@ -11,7 +11,7 @@
   * Использование уровней истинности предпосылок правил
 - Дефазификацию методом центра тяжести
 """
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 import numpy as np
 from enum import Enum
 from fuzzy_sets_parser import FuzzyVariable
@@ -59,9 +59,15 @@ class FuzzyRule:
 class FuzzyInferenceEngine:
     """Движок нечёткого логического вывода"""
     
-    def __init__(self, rules: List[FuzzyRule], variables: Dict[str, FuzzyVariable]):
+    def __init__(
+        self,
+        rules: List[FuzzyRule],
+        variables: Dict[str, FuzzyVariable],
+        condition_resolution: int = 201
+    ):
         self.rules = rules
         self.variables = variables
+        self.condition_resolution = max(51, condition_resolution)
     
     def _implication(self, a: float, b: float, impl_type: ImplicationType) -> float:
         """Применяет импликацию"""
@@ -85,6 +91,17 @@ class FuzzyInferenceEngine:
                 result = result + v - result * v
             return min(1.0, result)
     
+    def _build_input_membership(self, var: FuzzyVariable, value: float) -> Tuple[np.ndarray, np.ndarray]:
+        """Формирует нечёткое множество A'j(x) для входного значения"""
+        x_range = np.linspace(var.min_val, var.max_val, self.condition_resolution)
+        
+        # Для crisp значения строим узкую треугольную ступеньку (фаззифицированный синглтон)
+        span = (var.max_val - var.min_val) or 1.0
+        half_width = span / max(self.condition_resolution // 2, 1)
+        
+        membership = np.maximum(1.0 - np.abs(x_range - value) / half_width, 0.0)
+        return x_range, membership
+    
     def _evaluate_rule_conditions(self, rule: FuzzyRule, inputs: Dict[str, float]) -> float:
         """Вычисляет уровень истинности предпосылок правила"""
         truth_levels = []
@@ -97,7 +114,15 @@ class FuzzyInferenceEngine:
             if not var:
                 return 0.0
             
-            truth = var.get_membership(term_name, inputs[var_name])
+            result_term = var.terms.get(term_name)
+            if not result_term:
+                truth_levels.append(0.0)
+                continue
+            
+            x_range, input_mf = self._build_input_membership(var, inputs[var_name])
+            term_membership = np.array([result_term.membership(x) for x in x_range])
+            intersection = np.minimum(input_mf, term_membership)
+            truth = float(np.max(intersection))
             truth_levels.append(truth)
         
         # Используем минимум для И (можно расширить для ИЛИ)
@@ -167,6 +192,26 @@ class FuzzyInferenceEngine:
                 output_mf = np.minimum(1.0, output_mf)
         
         return output_mf, x_range
+    
+    def get_rule_truth_levels(self, inputs: Dict[str, float],
+                               output_var: Optional[str] = None) -> List[Tuple[FuzzyRule, float]]:
+        """
+        Возвращает уровни истинности предпосылок для правил.
+        
+        Args:
+            inputs: входные значения
+            output_var: имя выходной переменной для фильтрации правил (опционально)
+        
+        Returns:
+            список кортежей (правило, уровень истинности)
+        """
+        truth_levels = []
+        for rule in self.rules:
+            if output_var and rule.result_var != output_var:
+                continue
+            level = self._evaluate_rule_conditions(rule, inputs)
+            truth_levels.append((rule, level))
+        return truth_levels
     
     def inference_truth_level(self, inputs: Dict[str, float],
                               output_var: str,

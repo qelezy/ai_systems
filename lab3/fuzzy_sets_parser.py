@@ -72,15 +72,29 @@ class FuzzySet:
 class FuzzyVariable:
     """Нечёткая переменная с несколькими термами"""
     
-    def __init__(self, name: str, min_val: float = 0.0, max_val: float = 100.0):
+    def __init__(self, name: str):
         self.name = name
-        self.min_val = min_val
-        self.max_val = max_val
+        self.min_val = float('inf')
+        self.max_val = float('-inf')
         self.terms: Dict[str, FuzzySet] = {}
     
     def add_term(self, term_name: str, mf: MembershipFunction):
         """Добавляет терм к переменной"""
         self.terms[term_name] = FuzzySet(term_name, mf)
+    
+    def update_range(self, values: List[float]):
+        """Обновляет диапазон переменной по параметрам функции принадлежности"""
+        if not values:
+            return
+        
+        min_val = min(values)
+        max_val = max(values)
+        
+        if self.min_val == float('inf') or min_val < self.min_val:
+            self.min_val = min_val
+        if self.max_val == float('-inf') or max_val > self.max_val:
+            self.max_val = max_val
+    
     
     def get_membership(self, term_name: str, x: float) -> float:
         """Возвращает степень принадлежности для терма"""
@@ -129,13 +143,11 @@ class FuzzySetsParser:
         
         # Добавляем переменную, если её ещё нет
         if var_name not in self.variables:
-            # Определяем диапазон переменной из параметров
-            min_val = min(params)
-            max_val = max(params)
-            self.variables[var_name] = FuzzyVariable(var_name, min_val, max_val)
+            self.variables[var_name] = FuzzyVariable(var_name)
         
-        # Добавляем терм
-        self.variables[var_name].add_term(term_name, mf)
+        variable = self.variables[var_name]
+        variable.add_term(term_name, mf)
+        variable.update_range(params)
     
     def _create_membership_function(self, mf_type: str, params: List[float]) -> MembershipFunction:
         """Создаёт функцию принадлежности по типу и параметрам"""
