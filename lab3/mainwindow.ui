@@ -14,224 +14,485 @@
    <string>Система нечёткого логического вывода</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout_main">
     <item>
-     <widget class="QWidget" name="leftPanel" native="true">
-      <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <widget class="QGroupBox" name="systemGroup">
-         <property name="title">
-          <string>Выбор системы</string>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <widget class="QLabel" name="systemLabel">
-            <property name="text">
-             <string>Тип системы:</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="systemCombo">
-            <item>
-             <property name="text">
-              <string>1 вход / 1 выход</string>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tabPart1">
+       <attribute name="title">
+        <string>Часть 1: Системы логического вывода</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_part1">
+        <item>
+         <widget class="QWidget" name="leftPanel" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout">
+           <item>
+            <widget class="QGroupBox" name="systemGroup">
+             <property name="title">
+              <string>Выбор системы</string>
              </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Несколько входов / 1 выход</string>
+             <layout class="QVBoxLayout" name="verticalLayout_2">
+              <item>
+               <widget class="QLabel" name="systemLabel">
+                <property name="text">
+                 <string>Тип системы:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="systemCombo">
+                <item>
+                 <property name="text">
+                  <string>1 вход / 1 выход</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Несколько входов / 1 выход</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="inputGroup">
+             <property name="title">
+              <string>Входные данные</string>
              </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Модель Мамдани (2 входа)</string>
+             <layout class="QVBoxLayout" name="inputLayout"/>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="paramsGroup">
+             <property name="title">
+              <string>Параметры вывода</string>
              </property>
-            </item>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="inputGroup">
-         <property name="title">
-          <string>Входные данные</string>
-         </property>
-         <layout class="QVBoxLayout" name="inputLayout"/>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="paramsGroup">
-         <property name="title">
-          <string>Параметры вывода</string>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
-          <item>
-           <widget class="QLabel" name="mechanismLabel">
-            <property name="text">
-             <string>Механизм вывода (только для 1 вход/1 выход):</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="mechanismCombo">
-            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_3">
+              <item>
+               <widget class="QLabel" name="mechanismLabel">
+                <property name="text">
+                 <string>Механизм вывода (только для 1 вход/1 выход):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="mechanismCombo">
+                <item>
+                 <property name="text">
+                  <string>Max-Min композиция</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Max-Product композиция</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Уровни истинности предпосылок</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="implLabel">
+                <property name="text">
+                 <string>Тип импликации (для уровней истинности):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="implCombo">
+                <item>
+                 <property name="text">
+                  <string>Мамдани</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Ларсен</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="aggLabel">
+                <property name="text">
+                 <string>Тип агрегации:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="aggCombo">
+                <item>
+                 <property name="text">
+                  <string>Max</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Sum</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="loadBtn">
              <property name="text">
-              <string>Уровни истинности</string>
+              <string>Загрузить данные</string>
              </property>
-            </item>
-            <item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="compareImplBtn">
              <property name="text">
-              <string>Композиция Max-Min</string>
+              <string>Сравнить импликации</string>
              </property>
-            </item>
-            <item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="calculateBtn">
              <property name="text">
-              <string>Композиция Max-Product</string>
+              <string>Вычислить</string>
              </property>
-            </item>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="implLabel">
-            <property name="text">
-             <string>Тип импликации:</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="implCombo">
-            <item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="resultGroup">
+             <property name="title">
+              <string>Результаты</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_4">
+              <item>
+               <widget class="QTextEdit" name="resultText">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="rightPanel" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,1">
+           <item>
+            <widget class="QLabel" name="plotLabel">
+             <property name="font">
+              <font>
+               <pointsize>12</pointsize>
+               <bold>true</bold>
+              </font>
+             </property>
              <property name="text">
-              <string>Мамдани</string>
+              <string>Визуализация</string>
              </property>
-            </item>
-            <item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="plotWidgetContainer" native="true">
+             <property name="minimumSize">
+              <size>
+               <width>600</width>
+               <height>400</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabPart2">
+       <attribute name="title">
+        <string>Часть 2: Моделирование нелинейной функции</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_part2">
+        <item>
+         <widget class="QWidget" name="leftPanelPart2" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_part2">
+           <item>
+            <widget class="QGroupBox" name="functionGroup">
+             <property name="title">
+              <string>Выбор функции</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_func">
+              <item>
+               <widget class="QLabel" name="functionLabel">
+                <property name="text">
+                 <string>Функция y = f(x):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="functionCombo">
+                <item>
+                 <property name="text">
+                  <string>y = sin(x)</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>y = x²</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>y = x³ - 2x</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>y = sin(x) * cos(x)</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="intervalLabel">
+                <property name="text">
+                 <string>Интервал [a, b]:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_interval">
+                <item>
+                 <widget class="QLabel" name="aLabel">
+                  <property name="text">
+                   <string>a =</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QDoubleSpinBox" name="aSpinBox">
+                  <property name="decimals">
+                   <number>2</number>
+                  </property>
+                  <property name="minimum">
+                   <double>-100.000000000000000</double>
+                  </property>
+                  <property name="maximum">
+                   <double>100.000000000000000</double>
+                  </property>
+                  <property name="value">
+                   <double>0.000000000000000</double>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="bLabel">
+                  <property name="text">
+                   <string>b =</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QDoubleSpinBox" name="bSpinBox">
+                  <property name="decimals">
+                   <number>2</number>
+                  </property>
+                  <property name="minimum">
+                   <double>-100.000000000000000</double>
+                  </property>
+                  <property name="maximum">
+                   <double>100.000000000000000</double>
+                  </property>
+                  <property name="value">
+                   <double>10.000000000000000</double>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <widget class="QLabel" name="resolutionLabel">
+                <property name="text">
+                 <string>Разрешение (количество точек):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="resolutionSpinBox">
+                <property name="minimum">
+                 <number>10</number>
+                </property>
+                <property name="maximum">
+                 <number>1000</number>
+                </property>
+                <property name="value">
+                 <number>100</number>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="modelGroup">
+             <property name="title">
+              <string>Параметры моделей</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_model">
+              <item>
+               <widget class="QLabel" name="rulesLabel">
+                <property name="text">
+                 <string>Количество правил (не менее 3):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="rulesSpinBox">
+                <property name="minimum">
+                 <number>3</number>
+                </property>
+                <property name="maximum">
+                 <number>20</number>
+                </property>
+                <property name="value">
+                 <number>5</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="implLabelPart2">
+                <property name="text">
+                 <string>Тип импликации:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="implComboPart2">
+                <item>
+                 <property name="text">
+                  <string>Мамдани</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Ларсен</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="aggLabelPart2">
+                <property name="text">
+                 <string>Тип агрегации:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="aggComboPart2">
+                <item>
+                 <property name="text">
+                  <string>Max</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Sum</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="buildModelBtn">
              <property name="text">
-              <string>Ларсен</string>
+              <string>Построить модели</string>
              </property>
-            </item>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="compLabel">
-            <property name="text">
-             <string>Тип композиции:</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="compCombo">
-            <item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="compareModelsBtn">
              <property name="text">
-              <string>Max-Min</string>
+              <string>Сравнить с исходной функцией</string>
              </property>
-            </item>
-            <item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="plotSurfaceBtn">
              <property name="text">
-              <string>Max-Product</string>
+              <string>Построить поверхности</string>
              </property>
-            </item>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="aggLabel">
-            <property name="text">
-             <string>Тип агрегации:</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="aggCombo">
-            <item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="resultGroupPart2">
+             <property name="title">
+              <string>Результаты</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_4_part2">
+              <item>
+               <widget class="QTextEdit" name="resultTextPart2">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="rightPanelPart2" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_5_part2" stretch="0,1">
+           <item>
+            <widget class="QLabel" name="plotLabelPart2">
+             <property name="font">
+              <font>
+               <pointsize>12</pointsize>
+               <bold>true</bold>
+              </font>
+             </property>
              <property name="text">
-              <string>Max</string>
+              <string>Визуализация</string>
              </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Sum</string>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="plotWidgetContainerPart2" native="true">
+             <property name="minimumSize">
+              <size>
+               <width>600</width>
+               <height>400</height>
+              </size>
              </property>
-            </item>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="compareImplBtn">
-         <property name="text">
-          <string>Сравнить импликации</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="calculateBtn">
-         <property name="text">
-          <string>Вычислить</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="resultGroup">
-         <property name="title">
-          <string>Результаты</string>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_4">
-          <item>
-           <widget class="QTextEdit" name="resultText">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="readOnly">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="loadBtn">
-         <property name="text">
-          <string>Загрузить данные</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QWidget" name="rightPanel" native="true">
-      <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,1">
-       <item>
-        <widget class="QLabel" name="plotLabel">
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Визуализация</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QWidget" name="plotWidgetContainer" native="true">
-         <property name="minimumSize">
-          <size>
-           <width>600</width>
-           <height>400</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-      </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
    </layout>

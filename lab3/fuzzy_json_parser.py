@@ -1,6 +1,9 @@
+"""
+Единый парсер для нечётких систем из JSON файла
+Объединяет функциональность парсеров множеств и правил
+"""
 import json
 from typing import Dict, List, Tuple, Union
-from fuzzy_inference_engine import FuzzyRule
 
 
 # ==============================
@@ -8,11 +11,16 @@ from fuzzy_inference_engine import FuzzyRule
 # ==============================
 
 class MembershipFunction:
+    """Базовый класс для функций принадлежности"""
+    
     def __call__(self, x: float) -> float:
+        """Вычисляет степень принадлежности для значения x"""
         raise NotImplementedError
 
 
 class TriangularMF(MembershipFunction):
+    """Треугольная функция принадлежности"""
+    
     def __init__(self, a: float, b: float, c: float):
         self.a = a
         self.b = b
@@ -29,6 +37,8 @@ class TriangularMF(MembershipFunction):
 
 
 class TrapezoidalMF(MembershipFunction):
+    """Трапециевидная функция принадлежности"""
+    
     def __init__(self, a: float, b: float, c: float, d: float):
         self.a = a
         self.b = b
@@ -52,29 +62,80 @@ class TrapezoidalMF(MembershipFunction):
 # ==============================
 
 class FuzzySet:
+    """Нечёткое множество"""
+    
     def __init__(self, name: str, mf: MembershipFunction):
         self.name = name
         self.mf = mf
 
     def membership(self, x: float) -> float:
+        """Возвращает степень принадлежности значения x"""
         return self.mf(x)
 
 
 class FuzzyVariable:
-    def __init__(self, name: str, min_val: float, max_val: float):
+    """Нечёткая переменная с несколькими термами"""
+    
+    def __init__(self, name: str, min_val: float = None, max_val: float = None):
         self.name = name
-        self.min_val = min_val
-        self.max_val = max_val
+        # Если min_val/max_val не указаны, вычисляем из термов
+        if min_val is not None and max_val is not None:
+            self.min_val = min_val
+            self.max_val = max_val
+        else:
+            self.min_val = float('inf')
+            self.max_val = float('-inf')
         self.terms: Dict[str, FuzzySet] = {}
 
     def add_term(self, term_name: str, mf: MembershipFunction):
+        """Добавляет терм к переменной"""
         self.terms[term_name] = FuzzySet(term_name, mf)
+        # Обновляем диапазон на основе параметров функции принадлежности
+        self._update_range_from_mf(mf)
+
+    def _update_range_from_mf(self, mf: MembershipFunction):
+        """Обновляет диапазон переменной по параметрам функции принадлежности"""
+        params = []
+        if isinstance(mf, TriangularMF):
+            params = [mf.a, mf.b, mf.c]
+        elif isinstance(mf, TrapezoidalMF):
+            params = [mf.a, mf.b, mf.c, mf.d]
+        
+        if params:
+            min_val = min(params)
+            max_val = max(params)
+            
+            if self.min_val == float('inf') or min_val < self.min_val:
+                self.min_val = min_val
+            if self.max_val == float('-inf') or max_val > self.max_val:
+                self.max_val = max_val
 
     def get_membership(self, term_name: str, x: float) -> float:
+        """Возвращает степень принадлежности для терма"""
+        if term_name not in self.terms:
+            return 0.0
         return self.terms[term_name].membership(x)
 
     def fuzzify(self, x: float) -> Dict[str, float]:
-        return {term: fs.membership(x) for term, fs in self.terms.items()}
+        """Фаззификация: возвращает степени принадлежности для всех термов"""
+        return {term: self.get_membership(term, x) for term in self.terms}
+
+
+# ==============================
+# НЕЧЁТКИЕ ПРАВИЛА
+# ==============================
+
+class FuzzyRule:
+    """Нечёткое правило"""
+    
+    def __init__(self, conditions: Dict[str, str], result_var: str, result_term: str):
+        self.conditions = conditions
+        self.result_var = result_var
+        self.result_term = result_term
+    
+    def __str__(self):
+        cond_str = " И ".join([f"{var}={term}" for var, term in self.conditions.items()])
+        return f"ЕСЛИ {cond_str} ТО {self.result_var}={self.result_term}"
 
 
 # ==============================
@@ -82,6 +143,7 @@ class FuzzyVariable:
 # ==============================
 
 class JSONFuzzyModelParser:
+    """Единый парсер для нечётких систем из JSON файла"""
 
     def __init__(self):
         self.variables: Dict[str, FuzzyVariable] = {}
@@ -89,10 +151,13 @@ class JSONFuzzyModelParser:
         self.input_variables: List[str] = []
         self.output_variable: str | None = None
 
-    # ---- PUBLIC ----
-
     def parse_file(self, file_path: str) -> Tuple[Dict[str, FuzzyVariable], List[FuzzyRule], List[str], str]:
-        """Считывает модель из JSON и возвращает переменные, правила и имена входов/выхода"""
+        """
+        Считывает модель из JSON и возвращает переменные, правила и имена входов/выхода
+        
+        Returns:
+            кортеж (словарь переменных, список правил, список имен входных переменных, имя выходной переменной)
+        """
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
@@ -122,9 +187,8 @@ class JSONFuzzyModelParser:
 
         return self.variables, self.rules, list(self.input_variables), self.output_variable
 
-    # ---- PRIVATE ----
-
     def _parse_variable(self, var_json: dict) -> FuzzyVariable:
+        """Парсит переменную из JSON"""
         name = var_json["name"]
         min_v, max_v = var_json["range"]
 
@@ -140,6 +204,7 @@ class JSONFuzzyModelParser:
         return variable
 
     def _create_mf(self, mf_type: str, params: List[float]) -> MembershipFunction:
+        """Создаёт функцию принадлежности по типу и параметрам"""
         mf_type = mf_type.lower()
 
         if mf_type == "tri" and len(params) == 3:
@@ -151,6 +216,7 @@ class JSONFuzzyModelParser:
         raise ValueError(f"Неверный тип функции принадлежности '{mf_type}' или параметры: {params}")
 
     def _parse_rules(self, rules_json: List[dict]):
+        """Парсит правила из JSON"""
         for rule in rules_json:
             if_block: dict = rule["if"]
             then_block: dict = rule["then"]

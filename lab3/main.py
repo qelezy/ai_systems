@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
-    QLabel, QSpinBox, QMessageBox
+    QLabel, QSpinBox, QMessageBox, QDoubleSpinBox
 )
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile
@@ -37,6 +37,7 @@ class FuzzyPlotWidget(QWidget):
         self.setLayout(layout)
 
     def plot_firing_levels(self, truth_levels, title="Уровни истинности правил"):
+        """Отображение уровней истинности правил"""
         self.figure.clear()
         ax = self.figure.add_subplot(111)
         if not truth_levels:
@@ -57,6 +58,38 @@ class FuzzyPlotWidget(QWidget):
             ax.grid(True, alpha=0.3, axis='y')
         self.canvas.draw()
 
+    def plot_comparison(self, x_original, y_original, x_mamdani, y_mamdani, 
+                       x_sugeno, y_sugeno, title="Сравнение моделей"):
+        """Отображение сравнения исходной функции с моделями Мамдани и Такаги-Сугено"""
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+        ax.plot(x_original, y_original, 'b-', linewidth=2, label='Исходная функция', alpha=0.8)
+        ax.plot(x_mamdani, y_mamdani, 'r--', linewidth=2, label='Модель Мамдани', alpha=0.8)
+        ax.plot(x_sugeno, y_sugeno, 'g:', linewidth=2, label='Модель Такаги-Сугено', alpha=0.8)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_title(title)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        self.canvas.draw()
+
+    def plot_surface(self, x, y, z, title="Поверхность отображения", model_name=""):
+        """Отображение 3D поверхности"""
+        self.figure.clear()
+        ax = self.figure.add_subplot(111, projection='3d')
+        if len(x.shape) == 1:
+            # Если данные одномерные, создаем сетку
+            X, Y = np.meshgrid(x, y)
+            Z = np.tile(z, (len(y), 1))
+        else:
+            X, Y, Z = x, y, z
+        ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.8)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+        ax.set_title(f"{title} - {model_name}")
+        self.canvas.draw()
+
 
 class MainWindow(QMainWindow):
     """Главное окно приложения"""
@@ -71,7 +104,8 @@ class MainWindow(QMainWindow):
         self.load_default_data()
 
         self.load_ui()
-        self.create_input_widgets()
+        self.setup_part1()
+        self.setup_part2()
 
     def load_ui(self):
         ui_file = QFile("mainwindow.ui")
@@ -91,15 +125,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Система нечёткого логического вывода")
         self.resize(1400, 800)
 
-        # График
-        self.plot_widget = FuzzyPlotWidget()
-        plot_layout = QVBoxLayout(self.ui.plotWidgetContainer)
-        plot_layout.setContentsMargins(0, 0, 0, 0)
-        plot_layout.addWidget(self.plot_widget)
-
-        # Кнопка
-        self.ui.calculateBtn.clicked.connect(self.calculate)
-
     def load_default_data(self):
         try:
             (
@@ -111,24 +136,85 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить данные: {e}")
 
+    def setup_part1(self):
+        """Настройка интерфейса для части 1"""
+        # График для части 1
+        self.plot_widget_part1 = FuzzyPlotWidget()
+        plot_layout = QVBoxLayout(self.ui.plotWidgetContainer)
+        plot_layout.setContentsMargins(0, 0, 0, 0)
+        plot_layout.addWidget(self.plot_widget_part1)
+
+        # Подключение сигналов
+        self.ui.calculateBtn.clicked.connect(self.calculate_part1)
+        self.ui.systemCombo.currentIndexChanged.connect(self.on_system_changed)
+        self.ui.compareImplBtn.clicked.connect(self.compare_implications)
+
+        # Инициализация виджетов
+        self.create_input_widgets()
+
+    def setup_part2(self):
+        """Настройка интерфейса для части 2"""
+        # График для части 2
+        self.plot_widget_part2 = FuzzyPlotWidget()
+        plot_layout = QVBoxLayout(self.ui.plotWidgetContainerPart2)
+        plot_layout.setContentsMargins(0, 0, 0, 0)
+        plot_layout.addWidget(self.plot_widget_part2)
+
+        # Подключение сигналов
+        self.ui.buildModelBtn.clicked.connect(self.build_models_part2)
+        self.ui.compareModelsBtn.clicked.connect(self.compare_models_part2)
+        self.ui.plotSurfaceBtn.clicked.connect(self.plot_surfaces_part2)
+
+    def on_system_changed(self, index):
+        """Обработчик изменения типа системы"""
+        self.create_input_widgets()
+
     def create_input_widgets(self):
+        """Создание виджетов ввода в зависимости от типа системы"""
         layout = self.ui.inputLayout
         while layout.count():
             item = layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Входное значение
-        layout.addWidget(QLabel("Количество предметов (0-6):"))
-        self.input1_spin = QSpinBox()
-        self.input1_spin.setRange(0, 6)
-        self.input1_spin.setValue(0)
-        layout.addWidget(self.input1_spin)
+        system_index = self.ui.systemCombo.currentIndex()
 
-        # Механизм логического вывода
+        if system_index == 0:
+            # Система 1 вход / 1 выход
+            layout.addWidget(QLabel("Количество предметов (0-6):"))
+            self.input1_spin = QSpinBox()
+            self.input1_spin.setRange(0, 6)
+            self.input1_spin.setValue(0)
+            layout.addWidget(self.input1_spin)
+        else:
+            # Система несколько входов / 1 выход
+            layout.addWidget(QLabel("Количество врагов АП (0-5):"))
+            self.input1_spin = QSpinBox()
+            self.input1_spin.setRange(0, 5)
+            self.input1_spin.setValue(0)
+            layout.addWidget(self.input1_spin)
+
+            layout.addWidget(QLabel("Количество врагов танк (0-5):"))
+            self.input2_spin = QSpinBox()
+            self.input2_spin.setRange(0, 5)
+            self.input2_spin.setValue(0)
+            layout.addWidget(self.input2_spin)
+
+            layout.addWidget(QLabel("Количество союзников рядом (0-5):"))
+            self.input3_spin = QSpinBox()
+            self.input3_spin.setRange(0, 5)
+            self.input3_spin.setValue(0)
+            layout.addWidget(self.input3_spin)
+
+        # Механизм логического вывода (только для 1 вход/1 выход)
         self.mechanismCombo = self.ui.mechanismCombo
         self.mechanismCombo.clear()
-        self.mechanismCombo.addItems(["Уровни истинности", "Композиция Max-Min", "Композиция Max-Product"])
+        self.mechanismCombo.addItems([
+            "Max-Min композиция",
+            "Max-Product композиция",
+            "Уровни истинности предпосылок"
+        ])
+        self.mechanismCombo.setEnabled(system_index == 0)
 
         # Тип импликации
         self.implCombo = self.ui.implCombo
@@ -138,24 +224,138 @@ class MainWindow(QMainWindow):
         # Тип агрегации
         self.aggCombo = self.ui.aggCombo
         self.aggCombo.clear()
-        self.aggCombo.addItems(["MAX", "SUM"])
+        self.aggCombo.addItems(["MAX", "SUM", "PROBOR"])
 
     def get_implication_type(self):
         return ImplicationType.MAMDANI if self.implCombo.currentIndex() == 0 else ImplicationType.LARSEN
 
     def get_aggregation_type(self):
-        return AggregationType.MAX if self.aggCombo.currentIndex() == 0 else AggregationType.SUM
+        return AggregationType.MAX if self.aggCombo.currentIndex() == 0 else AggregationType.SUM if self.aggCombo.currentIndex() == 1 else AggregationType.PROBOR
 
-    def get_composition_type(self):
-        index = self.mechanismCombo.currentIndex()
-        if index == 1:
-            return CompositionType.MAX_MIN
-        elif index == 2:
-            return CompositionType.MAX_PROD
-        return None
-
-    def calculate(self):
+    def calculate_part1(self):
+        """Вычисление для части 1 - универсальный метод для любого количества входов"""
         try:
+            system_index = self.ui.systemCombo.currentIndex()
+            impl_type = self.get_implication_type()
+            agg_type = self.get_aggregation_type()
+
+            # Получаем входные данные в зависимости от типа системы
+            inputs, input_vars, output_var = self._get_system_data(system_index)
+            if inputs is None:
+                return
+
+            # Фильтруем правила для данной системы
+            rules_filtered = self._filter_rules_for_system(inputs, output_var)
+            if not rules_filtered:
+                QMessageBox.warning(self, "Предупреждение", "Не найдено правил для данной системы")
+                return
+
+            # Создаем движок и вычисляем уровни истинности
+            engine = FuzzyInferenceEngine(rules_filtered, self.variables)
+            truth_levels = engine.get_rule_truth_levels(inputs, output_var)
+
+            # Выводим входные данные
+            self.ui.resultText.clear()
+            self._append_input_values(inputs, system_index)
+
+            # Вычисляем выходное значение в зависимости от механизма вывода
+            mechanism_index = self.mechanismCombo.currentIndex() if system_index == 0 else -1
+            output = self._compute_output(
+                engine, inputs, output_var, mechanism_index, impl_type, agg_type
+            )
+
+            # Выводим результаты
+            self.ui.resultText.append(f"Выходное значение: {output:.4f}")
+            self.append_truth_levels(truth_levels)
+            self.plot_widget_part1.plot_firing_levels(truth_levels)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка вычисления: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _get_system_data(self, system_index: int) -> tuple:
+        """Получает входные данные, входные переменные и выходную переменную для системы"""
+        if system_index == 0:
+            # Система 1 вход / 1 выход
+            input_val = self.input1_spin.value()
+            inputs = {"количество_предметов": input_val}
+            input_vars = ["количество_предметов"]
+            output_var = "готовность_к_бою"
+        else:
+            # Система несколько входов / 1 выход
+            input1_val = self.input1_spin.value()
+            input2_val = self.input2_spin.value()
+            input3_val = self.input3_spin.value()
+            inputs = {
+                "количество_врагов_ап": input1_val,
+                "количество_врагов_танк": input2_val,
+                "количество_союзников_рядом": input3_val
+            }
+            input_vars = list(inputs.keys())
+            output_var = "приоритет_защиты"
+        
+        return inputs, input_vars, output_var
+
+    def _filter_rules_for_system(self, inputs: dict, output_var: str) -> list:
+        """Фильтрует правила для данной системы"""
+        input_vars = set(inputs.keys())
+        return [
+            r for r in self.rules
+            if all(var in r.conditions for var in input_vars) and r.result_var == output_var
+        ]
+
+    def _append_input_values(self, inputs: dict, system_index: int):
+        """Выводит входные значения в текстовое поле"""
+        if system_index == 0:
+            # Один вход
+            val = list(inputs.values())[0]
+            self.ui.resultText.append(f"Входное значение: {int(val)}")
+        else:
+            # Несколько входов
+            self.ui.resultText.append("Входные значения:")
+            for var_name, val in inputs.items():
+                # Форматируем имя переменной для вывода
+                display_name = var_name.replace("_", " ").title()
+                self.ui.resultText.append(f"  {display_name}: {int(val)}")
+
+    def _compute_output(self, engine: FuzzyInferenceEngine, inputs: dict, 
+                       output_var: str, mechanism_index: int, 
+                       impl_type, agg_type) -> float:
+        """Вычисляет выходное значение в зависимости от механизма вывода"""
+        if mechanism_index == 0:
+            # Механизм: Max-Min композиция
+            membership, x_range = engine.inference_composition(
+                inputs, output_var,
+                comp_type=CompositionType.MAX_MIN,
+                impl_type=impl_type,
+                agg_type=agg_type
+            )
+            return engine.defuzzify_centroid(membership, x_range)
+        elif mechanism_index == 1:
+            # Механизм: Max-Product композиция
+            membership, x_range = engine.inference_composition(
+                inputs, output_var,
+                comp_type=CompositionType.MAX_PROD,
+                impl_type=impl_type,
+                agg_type=agg_type
+            )
+            return engine.defuzzify_centroid(membership, x_range)
+        else:
+            # Механизм: уровни истинности предпосылок (по умолчанию для многовходовых систем)
+            membership, x_range = engine.inference_truth_level(
+                inputs, output_var, impl_type=impl_type, agg_type=agg_type
+            )
+            return engine.defuzzify_centroid(membership, x_range)
+
+    def compare_implications(self):
+        """Сравнение разных типов импликаций"""
+        try:
+            system_index = self.ui.systemCombo.currentIndex()
+            if system_index != 0:
+                QMessageBox.warning(self, "Предупреждение", "Сравнение импликаций доступно только для системы 1 вход/1 выход")
+                return
+
             input_val = self.input1_spin.value()
             inputs = {"количество_предметов": input_val}
 
@@ -167,42 +367,27 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Предупреждение", "Не найдено правил для данной системы")
                 return
 
-            engine = FuzzyInferenceEngine(rules_filtered, self.variables)
-            impl_type = self.get_implication_type()
             agg_type = self.get_aggregation_type()
-            comp_type = self.get_composition_type()
-
-            truth_levels = engine.get_rule_truth_levels(inputs, "готовность_к_бою")
+            engine = FuzzyInferenceEngine(rules_filtered, self.variables)
 
             self.ui.resultText.clear()
-            self.ui.resultText.append(f"Входное значение: {int(input_val)}")
+            self.ui.resultText.append(f"Сравнение импликаций для входного значения: {int(input_val)}\n")
+            self.ui.resultText.append("Используется механизм: Уровни истинности предпосылок\n")
 
-            if comp_type is None:
-                # Механизм: уровни истинности
+            for impl_name, impl_type in [("Мамдани", ImplicationType.MAMDANI), ("Ларсен", ImplicationType.LARSEN)]:
                 membership, x_range = engine.inference_truth_level(
                     inputs, "готовность_к_бою", impl_type=impl_type, agg_type=agg_type
                 )
                 output = engine.defuzzify_centroid(membership, x_range)
-            else:
-                # Механизм: композиция
-                membership, x_range = engine.inference_composition(
-                    inputs, "готовность_к_бою",
-                    impl_type=impl_type,
-                    comp_type=comp_type,
-                    agg_type=agg_type
-                )
-                output = engine.defuzzify_centroid(membership, x_range)
-
-            self.ui.resultText.append(f"Выходное значение: {output:.2f}")
-            self.append_truth_levels(truth_levels)
-            self.plot_widget.plot_firing_levels(truth_levels)
+                self.ui.resultText.append(f"{impl_name}: {output:.2f}")
 
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Ошибка вычисления: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка сравнения: {e}")
             import traceback
             traceback.print_exc()
 
     def append_truth_levels(self, truth_levels):
+        """Добавление уровней истинности в текстовое поле"""
         self.ui.resultText.append("\nУровни истинности правил:")
         if not truth_levels:
             self.ui.resultText.append("  Правила не активированы.")
@@ -210,6 +395,24 @@ class MainWindow(QMainWindow):
             for idx, (rule, alpha) in enumerate(truth_levels, 1):
                 self.ui.resultText.append(f"  {idx}. {rule}")
                 self.ui.resultText.append(f"      α = {alpha:.3f}")
+
+    def build_models_part2(self):
+        """Построение моделей Мамдани и Такаги-Сугено для части 2"""
+        self.ui.resultTextPart2.clear()
+        self.ui.resultTextPart2.append("Функционал построения моделей будет реализован в следующем этапе.")
+        QMessageBox.information(self, "Информация", "Функционал построения моделей будет реализован позже.")
+
+    def compare_models_part2(self):
+        """Сравнение моделей с исходной функцией для части 2"""
+        self.ui.resultTextPart2.clear()
+        self.ui.resultTextPart2.append("Функционал сравнения моделей будет реализован в следующем этапе.")
+        QMessageBox.information(self, "Информация", "Функционал сравнения моделей будет реализован позже.")
+
+    def plot_surfaces_part2(self):
+        """Построение поверхностей для части 2"""
+        self.ui.resultTextPart2.clear()
+        self.ui.resultTextPart2.append("Функционал построения поверхностей будет реализован в следующем этапе.")
+        QMessageBox.information(self, "Информация", "Функционал построения поверхностей будет реализован позже.")
 
 
 def main():
