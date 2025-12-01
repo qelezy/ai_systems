@@ -59,14 +59,23 @@ class FuzzyInferenceEngine:
         self.condition_resolution = max(51, condition_resolution)
     
     def _implication(self, a: float, b: float, impl_type: ImplicationType) -> float:
-        """Применяет импликацию"""
+        """Применяет импликацию для скаляров"""
         if impl_type == ImplicationType.MAMDANI:
             return min(a, b)
         elif impl_type == ImplicationType.LARSEN:
             return a * b
     
+    def _implication_matrix(self, a: np.ndarray, b: np.ndarray, impl_type: ImplicationType) -> np.ndarray:
+        """Применяет импликацию поэлементно для матриц/векторов"""
+        if impl_type == ImplicationType.MAMDANI:
+            return np.minimum(a, b)
+        elif impl_type == ImplicationType.LARSEN:
+            return a * b
+        else:
+            return b
+    
     def _aggregate(self, values: List[float], agg_type: AggregationType) -> float:
-        """Применяет оператор агрегации"""
+        """Применяет оператор агрегации к списку скаляров"""
         if not values:
             return 0.0
         
@@ -79,6 +88,23 @@ class FuzzyInferenceEngine:
             for v in values[1:]:
                 result = result + v - result * v
             return min(1.0, result)
+    
+    def _aggregate_arrays(self, arrays: np.ndarray, agg_type: AggregationType) -> np.ndarray:
+        """Применяет оператор агрегации к массивам (первая ось - агрегация)"""
+        if arrays.size == 0:
+            return np.array([])
+        
+        if agg_type == AggregationType.MAX:
+            return np.max(arrays, axis=0)
+        elif agg_type == AggregationType.SUM:
+            return np.minimum(1.0, np.sum(arrays, axis=0))
+        elif agg_type == AggregationType.PROBOR:
+            result = arrays[0]
+            for i in range(1, len(arrays)):
+                result = result + arrays[i] - result * arrays[i]
+            return np.minimum(1.0, result)
+        else:
+            return np.max(arrays, axis=0)
     
     def _build_input_membership(self, var: FuzzyVariable, value: float) -> Tuple[np.ndarray, np.ndarray]:
         """Формирует нечёткое множество A'j(x) для входного значения"""
@@ -123,112 +149,97 @@ class FuzzyInferenceEngine:
                              impl_type: ImplicationType = ImplicationType.MAMDANI,
                              agg_type: AggregationType = AggregationType.MAX,
                              resolution: int = 1000) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Композиционный механизм вывода
-        
-        Правильный алгоритм (согласно теории нечетких систем):
-        
-        ШАГ 1: Вычисление нечетких соответствий для каждого правила R_i = A_i → B_i
-               (определяется типом импликации impl_type)
-               - Мамдани: μ_R_i(x,y) = min(α_i, μ_B_i(y))
-               - Ларсен: μ_R_i(x,y) = α_i * μ_B_i(y)
-               где α_i - уровень истинности предпосылок
-        
-        ШАГ 2: Вычисление выходов для каждого правила B'_i = A' ○ R_i 
-               (определяется типом композиции comp_type)
-               - MAX-MIN: B'_i(y) = max_x[min(α_i(x), μ_R_i(x,y))]
-                         Упрощённо: B'_i(y) = min(α_i, μ_B_i(y))
-               - MAX-PROD: B'_i(y) = max_x[α_i(x) * μ_R_i(x,y)]
-                          Упрощённо: B'_i(y) = α_i * μ_B_i(y)
-        
-        ШАГ 3: Агрегация индивидуальных выходов B' = Agg(B'_1, ..., B'_n)
-               (определяется типом агрегации agg_type)
-        
-        Args:
-            inputs: входные значения {имя_переменной: значение}
-            output_var: имя выходной переменной
-            comp_type: правило композиции (MAX_MIN или MAX_PROD)
-            impl_type: тип импликации (Мамдани или Ларсен)
-            agg_type: тип агрегации (MAX, SUM, PROBOR)
-            resolution: разрешение для выходной функции
-        
-        Returns:
-            кортеж (массив значений функции принадлежности, массив значений x)
-        """
+
         output_variable = self.variables.get(output_var)
         if not output_variable:
             raise ValueError(f"Переменная {output_var} не найдена")
 
         x_range = np.linspace(output_variable.min_val, output_variable.max_val, resolution)
         output_mf = np.zeros(resolution)
+        
+        # Сохраняем все B'_i для явной агрегации на шаге 3
+        individual_outputs = []
 
         # Обрабатываем каждое правило
         for rule in self.rules:
             if rule.result_var != output_var:
                 continue
 
-            # ШАГ 1: Вычисление нечётких соответствий R_i = A_i → B_i
-            # Вычисляем уровень истинности предпосылок (α_i)
-            truth_level = self._evaluate_rule_conditions(rule, inputs)
-            if truth_level == 0.0:
-                continue
+            # ===== ШАГ 1: Вычисление нечётких соответствий R_i(y) = A_i(x) → B_i(y) =====
 
-            # Получаем функцию принадлежности выходного терма μ_B_i(y)
+            
+            # Получаем входной терм A_i из условия правила
+            input_var_name = list(rule.conditions.keys())[0]  # Предполагаем одну входную переменную
+            input_term_name = rule.conditions[input_var_name]
+            
+            input_variable = self.variables.get(input_var_name)
+            if not input_variable:
+                continue
+                
+            input_term_mf = input_variable.terms.get(input_term_name)
+            if not input_term_mf:
+                continue
+            
+            # Получаем выходной терм B_i
             result_term_mf = output_variable.terms.get(rule.result_term)
             if not result_term_mf:
                 continue
+            
+            # Строим диапазон для входной переменной (для вычисления A_i(x))
+            x_input_range = np.linspace(input_variable.min_val, input_variable.max_val, 
+                                        self.condition_resolution)
+            
+            # Вычисляем A_i(x) для всех x в диапазоне входа
+            mu_a_i = np.array([input_term_mf.membership(x) for x in x_input_range])
+            
+            # Вычисляем B_i(y) для всех y в диапазоне выхода
+            mu_b_i = np.array([result_term_mf.membership(y) for y in x_range])
+            
+            # ШАГ 1: Вычисление нечётких соответствий R_i(x,y) = A_i(x) ⊙ B_i(y)
+            # Строим матрицу R_i размером (len(x_input_range), len(x_range))
+            # R_i[i,j] = A_i(x_i) ⊙ B_i(y_j)
+            
+            
+            # Вычисляем матрицу импликаций через векторизованную операцию
+            R_i_matrix = self._implication_matrix(mu_a_i[:, np.newaxis], mu_b_i[np.newaxis, :], 
+                                                  impl_type)
 
-            term_membership = np.array([result_term_mf.membership(x) for x in x_range])
-
-            # ШАГ 1 (продолжение): Вычисляем нечёткое соответствие R_i согласно типу импликации
-            # R_i(α_i, y) - это функция, которая связывает уровень истинности с выходным термом
-            if impl_type == ImplicationType.MAMDANI:
-                # Мамдани: R_i(y) = min(α_i, μ_B_i(y))
-                # Это нечёткое соответствие, которое будет использоваться в композиции
-                fuzzy_relation = np.minimum(truth_level, term_membership)
-            elif impl_type == ImplicationType.LARSEN:
-                # Ларсен: R_i(y) = α_i * μ_B_i(y)
-                # Это нечёткое соответствие, которое будет использоваться в композиции
-                fuzzy_relation = truth_level * term_membership
-            else:
-                fuzzy_relation = np.minimum(truth_level, term_membership)
-
-            # ШАГ 2: Вычисление выходов для каждого правила B'_i = A' ○ R_i
-            # Композиция A' с R_i согласно правилу композиции (comp_type)
-            # Поскольку A' - это синглтон α_i, композиция упрощается
+            # ШАГ 2: Вычисление выходов для каждого правила B'_i(y) = A' ○ R_i
+            # где A' - фаззифицированный входной синглтон (для входного значения из inputs)
+            # ○ - операция композиции (max-min или max-product, определяется comp_type)
+            
+            # Получаем A'(x) - фаззифицированное входное значение
+            x_input_range_crisp, a_prime = self._build_input_membership(input_variable, 
+                                                                         inputs[input_var_name])
+            
+            # Интерполируем A' на сетку x_input_range для согласования размеров
+            a_prime_interp = np.interp(x_input_range, x_input_range_crisp, a_prime)
+            
+            # Вычисляем B'_i(y) = max_x[A'(x) ⊙ R_i(x,y)]
+            # где ⊙ определяется типом композиции
+            
             if comp_type == CompositionType.MAX_MIN:
-                # MAX-MIN композиция: B'_i(y) = max_x[min(α_i, μ_R_i(x,y))]
-                # Упрощённо (для синглтона): B'_i(y) = min(α_i, μ_B_i(y))
-                # Это уже содержится в fuzzy_relation для Мамдани
-                if impl_type == ImplicationType.MAMDANI:
-                    rule_output = fuzzy_relation  # уже min(α_i, μ_B_i(y))
-                else:
-                    # Если impl_type = Ларсен, но comp_type = MAX_MIN, используем min
-                    rule_output = np.minimum(truth_level, term_membership)
+                # MAX_MIN композиция: B'_i(y) = max_x[min(A'(x), R_i(x,y))]
+                # Для каждого y: берём минимум A'(x) с каждой строкой R_i, потом max по x
+                B_i_prime = np.max(np.minimum(a_prime_interp[:, np.newaxis], R_i_matrix), axis=0)
             elif comp_type == CompositionType.MAX_PROD:
-                # MAX-PROD композиция: B'_i(y) = max_x[α_i * μ_R_i(x,y)]
-                # Упрощённо (для синглтона): B'_i(y) = α_i * μ_B_i(y)
-                # Это уже содержится в fuzzy_relation для Ларсена
-                if impl_type == ImplicationType.LARSEN:
-                    rule_output = fuzzy_relation  # уже α_i * μ_B_i(y)
-                else:
-                    # Если impl_type = Мамдани, но comp_type = MAX_PROD, используем product
-                    rule_output = truth_level * term_membership
+                # MAX_PROD композиция: B'_i(y) = max_x[A'(x) * R_i(x,y)]
+                # Для каждого y: берём произведение A'(x) с каждой строкой R_i, потом max по x
+                B_i_prime = np.max(a_prime_interp[:, np.newaxis] * R_i_matrix, axis=0)
             else:
-                rule_output = fuzzy_relation
+                B_i_prime = np.max(R_i_matrix, axis=0)
 
-            # ШАГ 3: Агрегация индивидуальных выходов правил B' = Agg(B'_1, ..., B'_n)
-            # Объединяем результаты всех правил согласно типу агрегации
-            if agg_type == AggregationType.MAX:
-                # MAX агрегация: B'(y) = max_i[B'_i(y)]
-                output_mf = np.maximum(output_mf, rule_output)
-            elif agg_type == AggregationType.SUM:
-                # SUM агрегация: B'(y) = min(1.0, Σ_i[B'_i(y)])
-                output_mf = np.minimum(1.0, output_mf + rule_output)
-            elif agg_type == AggregationType.PROBOR:
-                # PROBOR агрегация: B'(y) = a ⊕ b = a + b - a*b
-                output_mf = output_mf + rule_output - output_mf * rule_output
-                output_mf = np.minimum(1.0, output_mf)
+            individual_outputs.append(B_i_prime)
+
+        # ===== ШАГ 3: Агрегация индивидуальных выходов B' = Agg(B'_1, ..., B'_n) =====
+        
+        if not individual_outputs:
+            return output_mf, x_range
+
+        individual_outputs = np.array(individual_outputs)
+        
+        # Используем векторизованную функцию агрегации
+        output_mf = self._aggregate_arrays(individual_outputs, agg_type)
 
         return output_mf, x_range
     
