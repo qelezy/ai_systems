@@ -24,7 +24,7 @@
        <attribute name="title">
         <string>Часть 1: Системы логического вывода</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_part1">
+       <layout class="QHBoxLayout" name="horizontalLayout_part1" stretch="1,1">
         <item>
          <widget class="QWidget" name="leftPanel" native="true">
           <layout class="QVBoxLayout" name="verticalLayout">
@@ -50,7 +50,7 @@
                 </item>
                 <item>
                  <property name="text">
-                  <string>Несколько входов / 1 выход</string>
+                  <string>3 входа / 1 выход</string>
                  </property>
                 </item>
                </widget>
@@ -75,7 +75,7 @@
               <item>
                <widget class="QLabel" name="mechanismLabel">
                 <property name="text">
-                 <string>Механизм вывода (только для 1 вход/1 выход):</string>
+                 <string>Механизм вывода:</string>
                 </property>
                </widget>
               </item>
@@ -101,7 +101,7 @@
               <item>
                <widget class="QLabel" name="implLabel">
                 <property name="text">
-                 <string>Тип импликации (для уровней истинности):</string>
+                 <string>Тип импликации:</string>
                 </property>
                </widget>
               </item>
@@ -224,7 +224,7 @@
        <attribute name="title">
         <string>Часть 2: Моделирование нелинейной функции</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_part2">
+       <layout class="QHBoxLayout" name="horizontalLayout_part2" stretch="1,1">
         <item>
          <widget class="QWidget" name="leftPanelPart2" native="true">
           <layout class="QVBoxLayout" name="verticalLayout_part2">
