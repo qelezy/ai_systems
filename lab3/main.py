@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
-    QLabel, QSpinBox, QMessageBox, QDoubleSpinBox, QFileDialog
+    QLabel, QSpinBox, QMessageBox, QDoubleSpinBox, QFileDialog, QInputDialog
 )
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile
@@ -153,6 +153,7 @@ class MainWindow(QMainWindow):
         self.rules = []
         self.input_variables = []
         self.output_variable = None
+        self.current_model_index = 0  # Индекс текущей загруженной модели
         self.load_default_data()
 
         self.load_ui()
@@ -236,9 +237,43 @@ class MainWindow(QMainWindow):
             if not file_path:
                 return
             
-            # Загружаем данные из файла
+            # Получаем список доступных моделей
+            available_models = self.parser.get_available_models(file_path)
+            
+            if not available_models:
+                QMessageBox.warning(self, "Ошибка", "В файле не найдены модели")
+                return
+            
+            # Определяем индекс модели для загрузки
+            if len(available_models) == 1:
+                # Если только одна модель - загружаем её
+                model_index = 0
+            else:
+                # Если несколько моделей - показываем диалог выбора
+                model_names = [name for _, name, _ in available_models]
+                selected_name, ok = QInputDialog.getItem(
+                    self,
+                    "Выбор модели",
+                    "Выберите модель для загрузки:",
+                    model_names,
+                    0,
+                    False
+                )
+                
+                if not ok:
+                    return
+                
+                model_index = model_names.index(selected_name)
+            
+            # Загружаем выбранную модель
             self.variables, self.rules, self.input_variables, self.output_variable = \
-                self.parser.parse_file(file_path)
+                self.parser.parse_file(file_path, model_index=model_index)
+            
+            # Сохраняем индекс текущей модели
+            self.current_model_index = model_index
+            
+            # Пересоздаём входные виджеты под новую модель
+            self.create_input_widgets()
             
             # Очищаем результаты
             self.ui.resultText.clear()
@@ -300,7 +335,7 @@ class MainWindow(QMainWindow):
             "Max-Product композиция",
             "Уровни истинности предпосылок"
         ])
-        self.mechanismCombo.setEnabled(system_index == 0)
+
 
         # Тип импликации
         self.implCombo = self.ui.implCombo
@@ -345,7 +380,7 @@ class MainWindow(QMainWindow):
             self._append_input_values(inputs, system_index)
 
             # Вычисляем выходное значение в зависимости от механизма вывода
-            mechanism_index = self.mechanismCombo.currentIndex() if system_index == 0 else -1
+            mechanism_index = self.mechanismCombo.currentIndex()
             output, membership, x_range = self._compute_output_with_membership(
                 engine, inputs, output_var, mechanism_index, impl_type, agg_type
             )

@@ -151,9 +151,13 @@ class JSONFuzzyModelParser:
         self.input_variables: List[str] = []
         self.output_variable: str | None = None
 
-    def parse_file(self, file_path: str) -> Tuple[Dict[str, FuzzyVariable], List[FuzzyRule], List[str], str]:
+    def parse_file(self, file_path: str, model_index: int = 0) -> Tuple[Dict[str, FuzzyVariable], List[FuzzyRule], List[str], str]:
         """
         Считывает модель из JSON и возвращает переменные, правила и имена входов/выхода
+        
+        Args:
+            file_path: Путь к JSON файлу
+            model_index: Индекс модели для загрузки (по умолчанию 0 - первая модель)
         
         Returns:
             кортеж (словарь переменных, список правил, список имен входных переменных, имя выходной переменной)
@@ -161,7 +165,19 @@ class JSONFuzzyModelParser:
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        model = data["model"]
+        # Поддержка старого формата с одной моделью и новый формат с массивом моделей
+        if "models" in data:
+            models = data["models"]
+        elif "model" in data:
+            models = [data["model"]]
+        else:
+            raise ValueError("В конфигурации не найдены модели (ожидается 'models' или 'model')")
+        
+        # Проверяем индекс модели
+        if model_index >= len(models):
+            raise ValueError(f"Индекс модели {model_index} выходит за границы. Доступных моделей: {len(models)}")
+        
+        model = models[model_index]
 
         # Сбрасываем состояние перед парсингом
         self.variables = {}
@@ -169,26 +185,64 @@ class JSONFuzzyModelParser:
         self.input_variables = []
         self.output_variable = None
 
-        # Парсим входные переменные (может быть словарь или список словарей)
-        inputs_block: Union[dict, List[dict]] = model["input"]
-        if isinstance(inputs_block, dict):
-            inputs_block = [inputs_block]
+        # Новая структура: input_variables и output_variables
+        if "input_variables" in model:
+            # Новый формат
+            for input_def in model["input_variables"]:
+                variable = self._parse_new_variable(input_def)
+                self.input_variables.append(variable.name)
+            
+            for output_def in model["output_variables"]:
+                variable = self._parse_new_variable(output_def)
+                self.output_variable = variable.name
+        else:
+            # Старый формат (если ещё используется)
+            inputs_block: Union[dict, List[dict]] = model.get("input", [])
+            if isinstance(inputs_block, dict):
+                inputs_block = [inputs_block]
 
-        for input_def in inputs_block:
-            variable = self._parse_variable(input_def)
-            self.input_variables.append(variable.name)
+            for input_def in inputs_block:
+                variable = self._parse_variable(input_def)
+                self.input_variables.append(variable.name)
 
-        # Выходная переменная
-        output_variable = self._parse_variable(model["output"])
-        self.output_variable = output_variable.name
+            # Выходная переменная
+            if "output" in model:
+                output_variable = self._parse_variable(model["output"])
+                self.output_variable = output_variable.name
 
         # Парсим правила
         self._parse_rules(model["rules"])
 
         return self.variables, self.rules, list(self.input_variables), self.output_variable
+    
+    def get_available_models(self, file_path: str) -> List[Tuple[int, str, str]]:
+        """
+        Получить список доступных моделей в файле конфигурации
+        
+        Returns:
+            Список кортежей (индекс, имя модели, описание)
+        """
+        with open(file_path, encoding="utf-8") as f:
+            data = json.load(f)
+        
+        # Поддержка старого формата
+        if "models" in data:
+            models = data["models"]
+        elif "model" in data:
+            models = [data["model"]]
+        else:
+            return []
+        
+        models_list = []
+        for idx, model in enumerate(models):
+            name = model.get("name", f"Модель {idx + 1}")
+            description = model.get("description", "")
+            models_list.append((idx, name, description))
+        
+        return models_list
 
     def _parse_variable(self, var_json: dict) -> FuzzyVariable:
-        """Парсит переменную из JSON"""
+        """Парсит переменную из JSON (старый формат)"""
         name = var_json["name"]
         min_v, max_v = var_json["range"]
 
@@ -198,6 +252,30 @@ class JSONFuzzyModelParser:
             mf_type = term_data["type"]
             params = term_data["params"]
             mf = self._create_mf(mf_type, params)
+            variable.add_term(term_name, mf)
+
+        self.variables[name] = variable
+        return variable
+    
+    def _parse_new_variable(self, var_json: dict) -> FuzzyVariable:
+        """Парсит переменную из JSON"""
+        name = var_json["name"]
+        min_v, max_v = var_json["range"]
+
+        variable = FuzzyVariable(name, min_v, max_v)
+
+        for term_name, term_data in var_json["terms"].items():
+            mf_type = term_data["type"].lower()
+            params = term_data["params"]
+            
+            # Преобразуем типы для совместимости
+            if mf_type == "tri":
+                mf = TriangularMF(*params)
+            elif mf_type == "trap":
+                mf = TrapezoidalMF(*params)
+            else:
+                mf = self._create_mf(mf_type, params)
+            
             variable.add_term(term_name, mf)
 
         self.variables[name] = variable
