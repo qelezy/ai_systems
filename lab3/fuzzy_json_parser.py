@@ -185,30 +185,21 @@ class JSONFuzzyModelParser:
         self.input_variables = []
         self.output_variable = None
 
-        # Новая структура: input_variables и output_variables
-        if "input_variables" in model:
-            # Новый формат
-            for input_def in model["input_variables"]:
-                variable = self._parse_new_variable(input_def)
-                self.input_variables.append(variable.name)
-            
-            for output_def in model["output_variables"]:
-                variable = self._parse_new_variable(output_def)
-                self.output_variable = variable.name
-        else:
-            # Старый формат (если ещё используется)
-            inputs_block: Union[dict, List[dict]] = model.get("input", [])
-            if isinstance(inputs_block, dict):
-                inputs_block = [inputs_block]
+        # Обработка входных переменных
+        # Поддерживаем оба формата: "input" может быть словарём или массивом
+        inputs_block: Union[dict, List[dict]] = model.get("input", [])
+        if isinstance(inputs_block, dict):
+            # Один вход в формате словаря
+            inputs_block = [inputs_block]
 
-            for input_def in inputs_block:
-                variable = self._parse_variable(input_def)
-                self.input_variables.append(variable.name)
+        for input_def in inputs_block:
+            variable = self._parse_variable(input_def)
+            self.input_variables.append(variable.name)
 
-            # Выходная переменная
-            if "output" in model:
-                output_variable = self._parse_variable(model["output"])
-                self.output_variable = output_variable.name
+        # Обработка выходной переменной
+        if "output" in model:
+            output_variable = self._parse_variable(model["output"])
+            self.output_variable = output_variable.name
 
         # Парсим правила
         self._parse_rules(model["rules"])
@@ -257,30 +248,6 @@ class JSONFuzzyModelParser:
         self.variables[name] = variable
         return variable
     
-    def _parse_new_variable(self, var_json: dict) -> FuzzyVariable:
-        """Парсит переменную из JSON"""
-        name = var_json["name"]
-        min_v, max_v = var_json["range"]
-
-        variable = FuzzyVariable(name, min_v, max_v)
-
-        for term_name, term_data in var_json["terms"].items():
-            mf_type = term_data["type"].lower()
-            params = term_data["params"]
-            
-            # Преобразуем типы для совместимости
-            if mf_type == "tri":
-                mf = TriangularMF(*params)
-            elif mf_type == "trap":
-                mf = TrapezoidalMF(*params)
-            else:
-                mf = self._create_mf(mf_type, params)
-            
-            variable.add_term(term_name, mf)
-
-        self.variables[name] = variable
-        return variable
-
     def _create_mf(self, mf_type: str, params: List[float]) -> MembershipFunction:
         """Создаёт функцию принадлежности по типу и параметрам"""
         mf_type = mf_type.lower()

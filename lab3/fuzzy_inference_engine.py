@@ -118,29 +118,39 @@ class FuzzyInferenceEngine:
         return x_range, membership
     
     def _evaluate_rule_conditions(self, rule: FuzzyRule, inputs: Dict[str, float]) -> float:
-        """Вычисляет уровень истинности предпосылок правила"""
+        """Вычисляет уровень истинности предпосылок правила для одного или нескольких входов"""
         truth_levels = []
         
+        # Проходим по всем условиям в правиле
         for var_name, term_name in rule.conditions.items():
+            # Проверяем, есть ли входное значение для этой переменной
             if var_name not in inputs:
-                return 0.0
+                truth_levels.append(0.0)
+                continue
             
+            # Получаем переменную из базы переменных
             var = self.variables.get(var_name)
             if not var:
-                return 0.0
+                truth_levels.append(0.0)
+                continue
             
+            # Получаем терм из переменной
             result_term = var.terms.get(term_name)
             if not result_term:
                 truth_levels.append(0.0)
                 continue
             
+            # Строим функцию принадлежности для входа
             x_range, input_mf = self._build_input_membership(var, inputs[var_name])
+            
+            # Вычисляем пересечение с термом
             term_membership = np.array([result_term.membership(x) for x in x_range])
-            intersection = np.minimum(input_mf, term_membership)
+            intersection = np.minimum(input_mf, term_membership)        
+
             truth = float(np.max(intersection))
             truth_levels.append(truth)
         
-        # Используем минимум для И (можно расширить для ИЛИ)
+        # Используем минимум для И (конъюнкция предпосылок)
         return min(truth_levels) if truth_levels else 0.0
     
     def inference_composition(self, inputs: Dict[str, float], 
@@ -267,19 +277,19 @@ class FuzzyInferenceEngine:
                               output_var: str,
                               impl_type: ImplicationType = ImplicationType.MAMDANI,
                               agg_type: AggregationType = AggregationType.MAX,
-                              resolution: int = 1000) -> np.ndarray:
+                              resolution: int = 1000) -> Tuple[np.ndarray, np.ndarray]:
         """
         Механизм вывода с использованием уровней истинности предпосылок правил
         
         Args:
-            inputs: входные значения
+            inputs: входные значения (могут быть одна или несколько переменных)
             output_var: имя выходной переменной
             impl_type: тип импликации
             agg_type: тип агрегации
             resolution: разрешение
         
         Returns:
-            массив значений функции принадлежности
+            кортеж (массив значений функции принадлежности, диапазон X)
         """
         output_variable = self.variables.get(output_var)
         if not output_variable:
@@ -294,8 +304,10 @@ class FuzzyInferenceEngine:
                 continue
             
             # Вычисляем уровень истинности предпосылок
+            # Это работает корректно для одной и нескольких переменных
             truth_level = self._evaluate_rule_conditions(rule, inputs)
             
+            # Пропускаем правило, если уровень истинности нулевой
             if truth_level == 0.0:
                 continue
             
@@ -304,14 +316,20 @@ class FuzzyInferenceEngine:
             if not result_term_mf:
                 continue
             
-            # Вычисляем функцию принадлежности для выходного терма
+            # Вычисляем функцию принадлежности для выходного терма на всём диапазоне
             term_membership = np.array([result_term_mf.membership(x) for x in x_range])
             
-            # Применяем импликацию (обрезаем функцию принадлежности)
-            rule_output = np.array([self._implication(truth_level, m, impl_type) 
-                                   for m in term_membership])
+            # Применяем импликацию (обрезаем функцию принадлежности на уровне alpha)
+            if impl_type == ImplicationType.MAMDANI:
+                # Мамдани: min(alpha, term_membership)
+                rule_output = np.minimum(truth_level, term_membership)
+            elif impl_type == ImplicationType.LARSEN:
+                # Ларсен: alpha * term_membership
+                rule_output = truth_level * term_membership
+            else:
+                rule_output = term_membership
             
-            # Агрегируем
+            # Агрегируем с результатом предыдущих правил
             if agg_type == AggregationType.MAX:
                 output_mf = np.maximum(output_mf, rule_output)
             elif agg_type == AggregationType.SUM:

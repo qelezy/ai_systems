@@ -36,93 +36,105 @@ class FuzzyPlotWidget(QWidget):
         layout.addWidget(self.canvas)
         self.setLayout(layout)
 
-    def plot_firing_levels(self, truth_levels, title="Уровни истинности правил"):
-        """Отображение уровней истинности правил"""
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        if not truth_levels:
-            ax.text(0.5, 0.5, "Нет активных правил", ha='center', va='center', fontsize=11)
-            ax.set_axis_off()
-            ax.set_title(title)
-        else:
-            indices = np.arange(1, len(truth_levels) + 1)
-            values = [level for _, level in truth_levels]
-            ax.plot(indices, values, marker='o', linewidth=2, color='#4C72B0')
-            ax.fill_between(indices, values, alpha=0.2, color='#4C72B0')
-            ax.set_xticks(indices)
-            ax.set_xticklabels([str(i) for i in indices])
-            ax.set_ylim(0, 1.05)
-            ax.set_xlabel('Номер правила')
-            ax.set_ylabel('α (уровень истинности)')
-            ax.set_title(title)
-            ax.grid(True, alpha=0.3, axis='y')
-        self.canvas.draw()
-
-    def plot_membership_functions(self, input_var, output_var, input_value=None, 
+    def plot_membership_functions(self, input_vars, output_var, input_values=None, 
                                   output_membership=None, output_range=None, title="Функции принадлежности"):
         """Отображение входных и выходных функций принадлежности"""
         self.figure.clear()
-        
-        # Создаём два подграфика: один для входа (сверху), один для выхода (снизу)
-        ax1 = self.figure.add_subplot(211)
-        ax2 = self.figure.add_subplot(212)
-        
-        # ===== Входная переменная (СВЕРХУ) =====
-        x_range = np.linspace(input_var.min_val, input_var.max_val, 300)
         colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8']
         
-        for idx, (term_name, term) in enumerate(input_var.terms.items()):
-            y_vals = np.array([term.membership(x) for x in x_range])
-            ax1.plot(x_range, y_vals, linewidth=2, label=term_name, color=colors[idx % len(colors)])
-            ax1.fill_between(x_range, y_vals, alpha=0.2, color=colors[idx % len(colors)])
-        
-        # Отмечаем входное значение вертикальной линией
-        if input_value is not None:
-            ax1.axvline(x=input_value, color='black', linestyle='--', linewidth=2, label=f'Вход = {input_value}')
-        
-        ax1.set_xlabel('Значение')
-        ax1.set_ylabel('Степень принадлежности')
-        ax1.set_title(f'Входная переменная: {input_var.name}')
-        ax1.set_ylim(0, 1.05)
-        ax1.legend(loc='upper right', fontsize=9)
-        ax1.grid(True, alpha=0.3)
-        
-        # ===== Выходная переменная (СНИЗУ) =====
-        if output_range is not None and output_membership is not None:
-            # Отображаем результат вывода
-            ax2.fill_between(output_range, output_membership, alpha=0.3, color='#45B7D1', label='Выходная функция принадлежности')
-            ax2.plot(output_range, output_membership, linewidth=2, color='#45B7D1')
-        
-        # Отображаем все термы выходной переменной
-        for idx, (term_name, term) in enumerate(output_var.terms.items()):
-            x_range_out = np.linspace(output_var.min_val, output_var.max_val, 300)
-            y_vals = np.array([term.membership(x) for x in x_range_out])
-            ax2.plot(x_range_out, y_vals, linewidth=1.5, label=term_name, 
-                    color=colors[idx % len(colors)], linestyle=':', alpha=0.7)
-        
-        ax2.set_xlabel('Значение')
-        ax2.set_ylabel('Степень принадлежности')
-        ax2.set_title(f'Выходная переменная: {output_var.name}')
-        ax2.set_ylim(0, 1.05)
-        ax2.legend(loc='upper right', fontsize=9)
-        ax2.grid(True, alpha=0.3)
-        
-        self.figure.tight_layout()
-        self.canvas.draw()
+        if len(input_vars) == 1:
+            # Старый вариант для одного входа
+            ax1 = self.figure.add_subplot(211)
+            ax2 = self.figure.add_subplot(212)
+            input_var = input_vars[0]
+            x_range = np.linspace(input_var.min_val, input_var.max_val, 300)
+            for idx, (term_name, term) in enumerate(input_var.terms.items()):
+                y_vals = np.array([term.membership(x) for x in x_range])
+                ax1.plot(x_range, y_vals, linewidth=2, label=term_name, color=colors[idx % len(colors)])
+                ax1.fill_between(x_range, y_vals, alpha=0.2, color=colors[idx % len(colors)])
+            if input_values and input_var.name in input_values:
+                ax1.axvline(x=input_values[input_var.name], color='black', linestyle='--', linewidth=2,
+                            label=f'Вход = {input_values[input_var.name]}')
+            ax1.set_title(f'Входная переменная: {input_var.name}')
+            ax1.set_ylim(0, 1.05)
+            ax1.set_ylabel('Степень принадлежности')
+            ax1.legend(loc='upper right', fontsize=9)
+            ax1.grid(True, alpha=0.3)
 
-    def plot_comparison(self, x_original, y_original, x_mamdani, y_mamdani, 
-                       x_sugeno, y_sugeno, title="Сравнение моделей"):
-        """Отображение сравнения исходной функции с моделями Мамдани и Такаги-Сугено"""
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.plot(x_original, y_original, 'b-', linewidth=2, label='Исходная функция', alpha=0.8)
-        ax.plot(x_mamdani, y_mamdani, 'r--', linewidth=2, label='Модель Мамдани', alpha=0.8)
-        ax.plot(x_sugeno, y_sugeno, 'g:', linewidth=2, label='Модель Такаги-Сугено', alpha=0.8)
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_title(title)
-        ax.legend()
-        ax.grid(True, alpha=0.3)
+            # Выход
+            if output_range is not None and output_membership is not None:
+                ax2.fill_between(output_range, output_membership, alpha=0.3, color='#45B7D1', label='Выходная функция принадлежности')
+                ax2.plot(output_range, output_membership, linewidth=2, color='#45B7D1')
+            for idx, (term_name, term) in enumerate(output_var.terms.items()):
+                x_range_out = np.linspace(output_var.min_val, output_var.max_val, 300)
+                y_vals = np.array([term.membership(x) for x in x_range_out])
+                ax2.plot(x_range_out, y_vals, linewidth=1.5, label=term_name,
+                        color=colors[idx % len(colors)], linestyle=':', alpha=0.7)
+            ax2.set_title(f'Выходная переменная: {output_var.name}')
+            ax2.set_ylim(0, 1.05)
+            ax2.set_xlabel('Значение')
+            ax2.set_ylabel('Степень принадлежности')
+            ax2.legend(loc='upper right', fontsize=9)
+            ax2.grid(True, alpha=0.3)
+
+        else:
+            # Новый вариант для 2+ входов
+            axes = self.figure.subplots(2, 2).flatten()
+            # Верх: первые два входа
+            for i, input_var in enumerate(input_vars[:2]):
+                ax = axes[i]
+                x_range = np.linspace(input_var.min_val, input_var.max_val, 300)
+                for idx, (term_name, term) in enumerate(input_var.terms.items()):
+                    y_vals = np.array([term.membership(x) for x in x_range])
+                    ax.plot(x_range, y_vals, linewidth=2, label=term_name, color=colors[idx % len(colors)])
+                    ax.fill_between(x_range, y_vals, alpha=0.2, color=colors[idx % len(colors)])
+                if input_values and input_var.name in input_values:
+                    ax.axvline(x=input_values[input_var.name], color='black', linestyle='--', linewidth=2,
+                            label=f'Вход = {input_values[input_var.name]}')
+                ax.set_title(f'Входная переменная: {input_var.name}')
+                ax.set_ylim(0, 1.05)
+                ax.set_ylabel('Степень принадлежности')
+                ax.legend(loc='upper right', fontsize=9)
+                ax.grid(True, alpha=0.3)
+
+            # Нижний левый график — третий вход (если есть)
+            ax3 = axes[2]
+            if len(input_vars) > 2:
+                input_var = input_vars[2]
+                x_range = np.linspace(input_var.min_val, input_var.max_val, 300)
+                for idx, (term_name, term) in enumerate(input_var.terms.items()):
+                    y_vals = np.array([term.membership(x) for x in x_range])
+                    ax3.plot(x_range, y_vals, linewidth=2, label=term_name, color=colors[idx % len(colors)])
+                    ax3.fill_between(x_range, y_vals, alpha=0.2, color=colors[idx % len(colors)])
+                if input_values and input_var.name in input_values:
+                    ax3.axvline(x=input_values[input_var.name], color='black', linestyle='--', linewidth=2,
+                                label=f'Вход = {input_values[input_var.name]}')
+                ax3.set_title(f'Входная переменная: {input_var.name}')
+                ax3.set_ylim(0, 1.05)
+                ax3.set_ylabel('Степень принадлежности')
+                ax3.legend(loc='upper right', fontsize=9)
+                ax3.grid(True, alpha=0.3)
+            else:
+                ax3.axis('off')
+
+            # Нижний правый график — выходная переменная
+            ax4 = axes[3]
+            if output_range is not None and output_membership is not None:
+                ax4.fill_between(output_range, output_membership, alpha=0.3, color='#45B7D1', label='Выходная функция принадлежности')
+                ax4.plot(output_range, output_membership, linewidth=2, color='#45B7D1')
+            for idx, (term_name, term) in enumerate(output_var.terms.items()):
+                x_range_out = np.linspace(output_var.min_val, output_var.max_val, 300)
+                y_vals = np.array([term.membership(x) for x in x_range_out])
+                ax4.plot(x_range_out, y_vals, linewidth=1.5, label=term_name,
+                        color=colors[idx % len(colors)], linestyle=':', alpha=0.7)
+            ax4.set_title(f'Выходная переменная: {output_var.name}')
+            ax4.set_ylim(0, 1.05)
+            ax4.set_xlabel('Значение')
+            ax4.set_ylabel('Степень принадлежности')
+            ax4.legend(loc='upper right', fontsize=9)
+            ax4.grid(True, alpha=0.3)
+
+        self.figure.tight_layout()
         self.canvas.draw()
 
     def plot_surface(self, x, y, z, title="Поверхность отображения", model_name=""):
@@ -154,6 +166,7 @@ class MainWindow(QMainWindow):
         self.input_variables = []
         self.output_variable = None
         self.current_model_index = 0  # Индекс текущей загруженной модели
+        self.model_file = MODEL_FILE  # Текущий файл конфигурации
         self.load_default_data()
 
         self.load_ui()
@@ -202,7 +215,7 @@ class MainWindow(QMainWindow):
         self.ui.systemCombo.currentIndexChanged.connect(self.on_system_changed)
         self.ui.compareImplBtn.clicked.connect(self.compare_implications)
         self.ui.loadBtn.clicked.connect(self.load_data_from_file)
-
+        
         # Инициализация виджетов
         self.create_input_widgets()
 
@@ -221,6 +234,24 @@ class MainWindow(QMainWindow):
 
     def on_system_changed(self, index):
         """Обработчик изменения типа системы"""
+        if hasattr(self, 'model_file') and self.model_file:
+            try:
+                # Загружаем модель из файла с новым индексом
+                variables, rules, input_vars, output_var = self.parser.parse_file(
+                    self.model_file, 
+                    model_index=index
+                )
+                
+                # Обновляем все переменные состояния
+                self.variables = variables
+                self.rules = rules
+                self.input_variables = input_vars
+                self.output_variable = output_var
+                self.current_model_index = index
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить модель {index}: {e}")
+        
+        # Пересоздаём виджеты для новой модели
         self.create_input_widgets()
 
     def load_data_from_file(self):
@@ -269,8 +300,14 @@ class MainWindow(QMainWindow):
             self.variables, self.rules, self.input_variables, self.output_variable = \
                 self.parser.parse_file(file_path, model_index=model_index)
             
-            # Сохраняем индекс текущей модели
+            # Сохраняем индекс текущей модели и путь к файлу
             self.current_model_index = model_index
+            self.model_file = file_path  # ← ДОБАВЛЕНО: сохраняем путь для будущих переключений
+            
+            # Обновляем combo box с правильным индексом модели
+            self.ui.systemCombo.blockSignals(True)
+            self.ui.systemCombo.setCurrentIndex(model_index)
+            self.ui.systemCombo.blockSignals(False)
             
             # Пересоздаём входные виджеты под новую модель
             self.create_input_widgets()
@@ -315,26 +352,37 @@ class MainWindow(QMainWindow):
             self.input1_spin.setValue(0)
             layout.addWidget(self.input1_spin)
 
-            layout.addWidget(QLabel("Количество врагов рядом (0-5):"))
+            layout.addWidget(QLabel("Количество врагов рядом (1-5):"))
             self.input2_spin = QSpinBox()
-            self.input2_spin.setRange(0, 5)
-            self.input2_spin.setValue(0)
+            self.input2_spin.setRange(1, 5)
+            self.input2_spin.setValue(1)
             layout.addWidget(self.input2_spin)
 
-            layout.addWidget(QLabel("Количество союзников рядом (0-5):"))
+            layout.addWidget(QLabel("Количество союзников рядом (1-5):"))
             self.input3_spin = QSpinBox()
-            self.input3_spin.setRange(0, 5)
-            self.input3_spin.setValue(0)
+            self.input3_spin.setRange(1, 5)
+            self.input3_spin.setValue(1)
             layout.addWidget(self.input3_spin)
 
         # Механизм логического вывода
         self.mechanismCombo = self.ui.mechanismCombo
         self.mechanismCombo.clear()
-        self.mechanismCombo.addItems([
-            "Max-Min композиция",
-            "Max-Product композиция",
-            "Уровни истинности предпосылок"
-        ])
+        
+        system_index = self.ui.systemCombo.currentIndex()
+        if system_index == 0:
+            # Для системы 1 вход/1 выход доступны все механизмы
+            self.mechanismCombo.addItems([
+                "Max-Min композиция",
+                "Max-Product композиция",
+                "Уровни истинности предпосылок"
+            ])
+            self.mechanismCombo.setEnabled(True)
+        else:
+            # Для систем с несколькими входами только уровни истинности предпосылок
+            self.mechanismCombo.addItems([
+                "Уровни истинности предпосылок"
+            ])
+            self.mechanismCombo.setEnabled(False)
 
 
         # Тип импликации
@@ -390,19 +438,18 @@ class MainWindow(QMainWindow):
             self.append_truth_levels(truth_levels)
             
             # Отображаем функции принадлежности
-            if system_index == 0:
-                input_var = self.variables.get("количество_предметов")
-                output_variable = self.variables.get(output_var)
-                input_val = list(inputs.values())[0]
-                
-                if input_var and output_variable:
-                    self.plot_widget_part1.plot_membership_functions(
-                        input_var, output_variable,
-                        input_value=input_val,
-                        output_membership=membership,
-                        output_range=x_range,
-                        title="Функции принадлежности"
-                    )
+            input_vars_objects = [self.variables[name] for name in inputs.keys() if name in self.variables]
+            output_variable = self.variables.get(output_var)
+            if output_variable and input_vars_objects:
+                title = "Функции принадлежности"
+                self.plot_widget_part1.plot_membership_functions(
+                    input_vars=input_vars_objects,
+                    output_var=output_variable,
+                    input_values=inputs,
+                    output_membership=membership,
+                    output_range=x_range,
+                    title=title
+                )
 
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка вычисления: {e}")
@@ -458,8 +505,15 @@ class MainWindow(QMainWindow):
                        output_var: str, mechanism_index: int, 
                        impl_type, agg_type) -> float:
         """Вычисляет выходное значение в зависимости от механизма вывода"""
-        if mechanism_index == 0:
-            # Механизм: Max-Min композиция
+        # Для систем с несколькими входами всегда используем уровни истинности предпосылок
+        num_inputs = len(inputs)
+        
+        # Для многовходовых систем механизм всегда "уровни истинности" (индекс 0 в списке)
+        if num_inputs > 1:
+            mechanism_index = 0  # уровни истинности
+        
+        if num_inputs == 1 and mechanism_index == 0:
+            # Механизм: Max-Min композиция (только для 1 входа)
             membership, x_range = engine.inference_composition(
                 inputs, output_var,
                 comp_type=CompositionType.MAX_MIN,
@@ -467,8 +521,8 @@ class MainWindow(QMainWindow):
                 agg_type=agg_type
             )
             return engine.defuzzify_centroid(membership, x_range)
-        elif mechanism_index == 1:
-            # Механизм: Max-Product композиция
+        elif num_inputs == 1 and mechanism_index == 1:
+            # Механизм: Max-Product композиция (только для 1 входа)
             membership, x_range = engine.inference_composition(
                 inputs, output_var,
                 comp_type=CompositionType.MAX_PROD,
@@ -477,7 +531,7 @@ class MainWindow(QMainWindow):
             )
             return engine.defuzzify_centroid(membership, x_range)
         else:
-            # Механизм: уровни истинности предпосылок (по умолчанию для многовходовых систем)
+            # Механизм: уровни истинности предпосылок (для многовходовых систем или если выбран этот механизм)
             membership, x_range = engine.inference_truth_level(
                 inputs, output_var, impl_type=impl_type, agg_type=agg_type
             )
@@ -487,8 +541,15 @@ class MainWindow(QMainWindow):
                                        output_var: str, mechanism_index: int, 
                                        impl_type, agg_type) -> tuple:
         """Вычисляет выходное значение с возвращением функции принадлежности"""
-        if mechanism_index == 0:
-            # Механизм: Max-Min композиция
+        # Для систем с несколькими входами всегда используем уровни истинности предпосылок
+        num_inputs = len(inputs)
+        
+        # Для многовходовых систем механизм всегда "уровни истинности" (индекс 0 в списке)
+        if num_inputs > 1:
+            mechanism_index = 0  # уровни истинности
+        
+        if num_inputs == 1 and mechanism_index == 0:
+            # Механизм: Max-Min композиция (только для 1 входа)
             membership, x_range = engine.inference_composition(
                 inputs, output_var,
                 comp_type=CompositionType.MAX_MIN,
@@ -497,8 +558,8 @@ class MainWindow(QMainWindow):
             )
             output = engine.defuzzify_centroid(membership, x_range)
             return output, membership, x_range
-        elif mechanism_index == 1:
-            # Механизм: Max-Product композиция
+        elif num_inputs == 1 and mechanism_index == 1:
+            # Механизм: Max-Product композиция (только для 1 входа)
             membership, x_range = engine.inference_composition(
                 inputs, output_var,
                 comp_type=CompositionType.MAX_PROD,
@@ -508,7 +569,7 @@ class MainWindow(QMainWindow):
             output = engine.defuzzify_centroid(membership, x_range)
             return output, membership, x_range
         else:
-            # Механизм: уровни истинности предпосылок
+            # Механизм: уровни истинности предпосылок (для многовходовых систем или если выбран этот механизм)
             membership, x_range = engine.inference_truth_level(
                 inputs, output_var, impl_type=impl_type, agg_type=agg_type
             )
@@ -519,61 +580,69 @@ class MainWindow(QMainWindow):
         """Сравнение типов импликаций (Мамдани и Ларсен) с учётом выбранного механизма"""
         try:
             system_index = self.ui.systemCombo.currentIndex()
-            if system_index != 0:
-                QMessageBox.warning(self, "Предупреждение", "Сравнение импликаций доступно только для системы 1 вход/1 выход")
+            
+            # Получаем входные данные для текущей системы
+            inputs, input_vars, output_var = self._get_system_data(system_index)
+            if inputs is None:
                 return
-
-            # Получаем параметры
-            input_val = self.input1_spin.value()
-            inputs = {"количество_предметов": input_val}
+            
             mechanism_index = self.mechanismCombo.currentIndex()
             agg_type = self.get_aggregation_type()
 
-            # Фильтруем правила
-            rules_filtered = [
-                r for r in self.rules
-                if "количество_предметов" in r.conditions and r.result_var == "готовность_к_бою"
-            ]
+            # Фильтруем правила для данной системы
+            rules_filtered = self._filter_rules_for_system(inputs, output_var)
             if not rules_filtered:
                 QMessageBox.warning(self, "Предупреждение", "Не найдено правил для данной системы")
                 return
 
             # Названия механизмов и типов агрегации
-            mechanism_names = ["Max-Min композиция", "Max-Product композиция", "Уровни истинности предпосылок"]
+            num_inputs = len(inputs)
+            
+            # Для многовходовых систем механизм всегда "уровни истинности"
+            if num_inputs > 1:
+                actual_mechanism_index = 0
+            else:
+                actual_mechanism_index = mechanism_index
+            
+            if num_inputs == 1:
+                mechanism_names = ["Max-Min композиция", "Max-Product композиция", "Уровни истинности предпосылок"]
+                mechanism_name = mechanism_names[actual_mechanism_index]
+            else:
+                mechanism_name = "Уровни истинности предпосылок"
+            
             agg_names = ["MAX", "SUM", "PROBOR"]
-            mechanism_name = mechanism_names[mechanism_index]
             agg_name = agg_names[self.aggCombo.currentIndex()]
 
             engine = FuzzyInferenceEngine(rules_filtered, self.variables)
 
             self.ui.resultText.clear()
-            self.ui.resultText.append(f"Входное значение: {int(input_val)}")
+            self._append_input_values(inputs, system_index)
             self.ui.resultText.append(f"Механизм вывода: {mechanism_name}")
             self.ui.resultText.append(f"Тип агрегации: {agg_name}")
             self.ui.resultText.append("")
 
             # Вычисляем выходы для обоих типов импликаций
             for impl_name, impl_type in [("Мамдани", ImplicationType.MAMDANI), ("Ларсен", ImplicationType.LARSEN)]:
-                if mechanism_index == 0:
-                    # Max-Min композиция
+                if num_inputs == 1 and actual_mechanism_index == 0:
+                    # Max-Min композиция (только для 1 входа)
                     membership, x_range = engine.inference_composition(
-                        inputs, "готовность_к_бою",
+                        inputs, output_var,
                         comp_type=CompositionType.MAX_MIN,
                         impl_type=impl_type,
                         agg_type=agg_type
                     )
-                elif mechanism_index == 1:
-                    # Max-Product композиция
+                elif num_inputs == 1 and actual_mechanism_index == 1:
+                    # Max-Product композиция (только для 1 входа)
                     membership, x_range = engine.inference_composition(
-                        inputs, "готовность_к_бою",
+                        inputs, output_var,
                         comp_type=CompositionType.MAX_PROD,
                         impl_type=impl_type,
                         agg_type=agg_type
                     )
                 else:
-                    # Уровни истинности предпосылок
+                    # Уровни истинности предпосылок (для многовходовых систем или если выбран этот механизм)
                     membership, x_range = engine.inference_truth_level(
-                        inputs, "готовность_к_бою",
+                        inputs, output_var,
                         impl_type=impl_type,
                         agg_type=agg_type
                     )
