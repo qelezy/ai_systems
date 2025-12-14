@@ -242,27 +242,13 @@
                </widget>
               </item>
               <item>
-               <widget class="QComboBox" name="functionCombo">
-                <item>
-                 <property name="text">
-                  <string>y = sin(x)</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>y = x²</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>y = x³ - 2x</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>y = sin(x) * cos(x)</string>
-                 </property>
-                </item>
+               <widget class="QLineEdit" name="functionLineEdit">
+                <property name="placeholderText">
+                 <string>Например: x**2, sin(x), x**3 - 2*x</string>
+                </property>
+                <property name="text">
+                 <string>x**2</string>
+                </property>
                </widget>
               </item>
               <item>
@@ -323,35 +309,6 @@
                </layout>
               </item>
               <item>
-               <widget class="QLabel" name="resolutionLabel">
-                <property name="text">
-                 <string>Разрешение (количество точек):</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QSpinBox" name="resolutionSpinBox">
-                <property name="minimum">
-                 <number>10</number>
-                </property>
-                <property name="maximum">
-                 <number>1000</number>
-                </property>
-                <property name="value">
-                 <number>100</number>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item>
-            <widget class="QGroupBox" name="modelGroup">
-             <property name="title">
-              <string>Параметры моделей</string>
-             </property>
-             <layout class="QVBoxLayout" name="verticalLayout_model">
-              <item>
                <widget class="QLabel" name="rulesLabel">
                 <property name="text">
                  <string>Количество правил (не менее 3):</string>
@@ -371,69 +328,13 @@
                 </property>
                </widget>
               </item>
-              <item>
-               <widget class="QLabel" name="implLabelPart2">
-                <property name="text">
-                 <string>Тип импликации:</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QComboBox" name="implComboPart2">
-                <item>
-                 <property name="text">
-                  <string>Мамдани</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>Ларсен</string>
-                 </property>
-                </item>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="aggLabelPart2">
-                <property name="text">
-                 <string>Тип агрегации:</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QComboBox" name="aggComboPart2">
-                <item>
-                 <property name="text">
-                  <string>Max</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>Sum</string>
-                 </property>
-                </item>
-               </widget>
-              </item>
              </layout>
             </widget>
            </item>
            <item>
             <widget class="QPushButton" name="buildModelBtn">
              <property name="text">
-              <string>Построить модели</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="compareModelsBtn">
-             <property name="text">
-              <string>Сравнить с исходной функцией</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="plotSurfaceBtn">
-             <property name="text">
-              <string>Построить поверхности</string>
+              <string>Вычислить модели</string>
              </property>
             </widget>
            </item>

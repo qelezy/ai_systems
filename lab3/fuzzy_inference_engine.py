@@ -380,4 +380,61 @@ class FuzzyInferenceEngine:
         
         max_indices = np.where(membership == max_val)[0]
         return np.mean(x_range[max_indices])
+    
+    def inference_takagi_sugeno(self, inputs: Dict[str, float],
+                                output_var: str,
+                                rule_functions: Dict[int, callable],
+                                agg_type: AggregationType = AggregationType.MAX) -> float:
+        """
+        Механизм вывода Такаги-Сугено
+        
+        В модели Такаги-Сугено выходное значение вычисляется как взвешенная сумма:
+        y = Σ(α_i * f_i(x)) / Σ(α_i)
+        
+        где:
+        - α_i - уровень истинности предпосылок i-го правила
+        - f_i(x) - функция в заключении i-го правила (обычно линейная)
+        
+        Args:
+            inputs: входные значения
+            output_var: имя выходной переменной (для фильтрации правил)
+            rule_functions: словарь {индекс_правила: функция(x)} для вычисления f_i(x)
+            agg_type: тип агрегации (для Такаги-Сугено обычно не используется, но оставлено для совместимости)
+        
+        Returns:
+            чёткое выходное значение
+        """
+        numerator = 0.0
+        denominator = 0.0
+        
+        for rule_idx, rule in enumerate(self.rules):
+            if rule.result_var != output_var:
+                continue
+            
+            # Вычисляем уровень истинности предпосылок
+            truth_level = self._evaluate_rule_conditions(rule, inputs)
+            
+            if truth_level == 0.0:
+                continue
+            
+            # Получаем функцию для этого правила
+            if rule_idx not in rule_functions:
+                continue
+            
+            func = rule_functions[rule_idx]
+            
+            # Вычисляем f_i(x) - значение функции правила
+            # Для одной входной переменной передаём её значение
+            input_val = list(inputs.values())[0] if len(inputs) == 1 else list(inputs.values())[0]
+            f_i = func(input_val)
+            
+            # Добавляем в взвешенную сумму
+            numerator += truth_level * f_i
+            denominator += truth_level
+        
+        # Избегаем деления на ноль
+        if denominator == 0:
+            return 0.0
+        
+        return numerator / denominator
 

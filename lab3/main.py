@@ -14,6 +14,7 @@ try:
 except ImportError:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from mpl_toolkits.mplot3d import Axes3D
 from fuzzy_json_parser import JSONFuzzyModelParser
 from fuzzy_inference_engine import (
     FuzzyInferenceEngine,
@@ -201,6 +202,33 @@ class MainWindow(QMainWindow):
             ) = self.parser.parse_file(MODEL_FILE)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить данные: {e}")
+    
+    def _update_rules_spinbox_max(self):
+        """Обновляет максимум для rulesSpinBox на основе доступных правил из первой модели"""
+        try:
+            # Загружаем первую модель для определения количества правил
+            variables, rules, input_vars, output_var = self.parser.parse_file(
+                self.model_file, model_index=0
+            )
+            
+            # Фильтруем правила для одной входной переменной
+            input_var_name = "количество_предметов"
+            rules_filtered = [
+                r for r in rules
+                if input_var_name in r.conditions and r.result_var == output_var
+            ]
+            
+            # Устанавливаем максимум
+            max_rules = max(3, len(rules_filtered))  # Минимум 3, но не меньше доступных правил
+            if hasattr(self, 'ui') and hasattr(self.ui, 'rulesSpinBox'):
+                self.ui.rulesSpinBox.setMaximum(max_rules)
+                # Если текущее значение больше максимума, устанавливаем максимум
+                if self.ui.rulesSpinBox.value() > max_rules:
+                    self.ui.rulesSpinBox.setValue(max_rules)
+        except Exception as e:
+            # В случае ошибки оставляем значение по умолчанию
+            if hasattr(self, 'ui') and hasattr(self.ui, 'rulesSpinBox'):
+                self.ui.rulesSpinBox.setMaximum(20)  # Значение по умолчанию
 
     def setup_part1(self):
         """Настройка интерфейса для части 1"""
@@ -228,9 +256,10 @@ class MainWindow(QMainWindow):
         plot_layout.addWidget(self.plot_widget_part2)
 
         # Подключение сигналов
-        self.ui.buildModelBtn.clicked.connect(self.build_models_part2)
-        self.ui.compareModelsBtn.clicked.connect(self.compare_models_part2)
-        self.ui.plotSurfaceBtn.clicked.connect(self.plot_surfaces_part2)
+        self.ui.buildModelBtn.clicked.connect(self.compute_models_part2)
+        
+        # Устанавливаем максимум для количества правил на основе загруженных данных
+        self._update_rules_spinbox_max()
 
     def on_system_changed(self, index):
         """Обработчик изменения типа системы"""
@@ -311,6 +340,9 @@ class MainWindow(QMainWindow):
             
             # Пересоздаём входные виджеты под новую модель
             self.create_input_widgets()
+            
+            # Обновляем максимум для количества правил
+            self._update_rules_spinbox_max()
             
             # Очищаем результаты
             self.ui.resultText.clear()
@@ -665,23 +697,307 @@ class MainWindow(QMainWindow):
                 self.ui.resultText.append(f"  {idx}. {rule}")
                 self.ui.resultText.append(f"      α = {alpha:.3f}")
 
-    def build_models_part2(self):
-        """Построение моделей Мамдани и Такаги-Сугено для части 2"""
+    def _parse_function(self, func_str: str):
+        """Безопасный парсинг функции из строки"""
+        import math
+        # Разрешаем только безопасные функции
+        safe_dict = {
+            "x": None,  # Будет заменено на значение
+            "sin": math.sin,
+            "cos": math.cos,
+            "tan": math.tan,
+            "exp": math.exp,
+            "log": math.log,
+            "sqrt": math.sqrt,
+            "abs": abs,
+            "pi": math.pi,
+            "e": math.e,
+            "__builtins__": {},
+        }
+        return lambda x: eval(func_str, {"__builtins__": {}}, {**safe_dict, "x": x})
+    
+    def compute_models_part2(self):
+        """Вычисление моделей Мамдани и Такаги-Сугено для части 2 с правильным алгоритмом"""
+        try:
+            # Получаем параметры
+            func_str = self.ui.functionLineEdit.text().strip()
+            if not func_str:
+                QMessageBox.warning(self, "Ошибка", "Введите функцию")
+                return
+            
+            a = self.ui.aSpinBox.value()
+            b = self.ui.bSpinBox.value()
+            if a >= b:
+                QMessageBox.warning(self, "Ошибка", "a должно быть меньше b")
+                return
+            
+            num_rules = self.ui.rulesSpinBox.value()
+            resolution = 100  # Фиксированное разрешение для вычислений
+            
+            # Парсим функцию
+            try:
+                func = self._parse_function(func_str)
+                # Проверяем функцию на тестовом значении
+                test_val = (a + b) / 2
+                func(test_val)
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Неверный формат функции: {e}")
+                return
+            
+            # Загружаем модель (используем первую модель для правил)
+            try:
+                variables, rules, input_vars, output_var = self.parser.parse_file(
+                    self.model_file, model_index=0
+                )
+            except:
+                QMessageBox.critical(self, "Ошибка", "Не удалось загрузить модель")
+                return
+            
+            # Фильтруем правила для одной входной переменной
+            input_var_name = "количество_предметов"  # Используем переменную из первой модели
+            rules_filtered = [
+                r for r in rules
+                if input_var_name in r.conditions and r.result_var == output_var
+            ]
+            
+            if len(rules_filtered) < 3:
+                QMessageBox.warning(self, "Ошибка", f"Недостаточно правил (нужно минимум 3, найдено {len(rules_filtered)})")
+                return
+            
+            # Ограничиваем количество правил
+            if len(rules_filtered) > num_rules:
+                rules_filtered = rules_filtered[:num_rules]
+            
+            # Создаём движок
+            engine = FuzzyInferenceEngine(rules_filtered, variables)
+            
+            # Вычисляем исходную функцию на интервале
+            x_range = np.linspace(a, b, resolution)
+            y_original = np.array([func(x) for x in x_range])
+            
+            # Вычисляем диапазон исходной функции
+            y_min, y_max = y_original.min(), y_original.max()
+            output_variable = variables[output_var]
+            output_range_model = (output_variable.min_val, output_variable.max_val)
+            
+            # Масштабируем входные значения к диапазону входной переменной модели
+            input_var = variables[input_var_name]
+            input_range_model = (input_var.min_val, input_var.max_val)
+            
+            # ===== МОДЕЛЬ МАМДАНИ =====
+            # Алгоритм:
+            # 1. Вычисление уровней истинности предпосылок для каждого правила
+            # 2. Вычисление выходов для каждого правила на основе импликации (min для Мамдани)
+            # 3. Агрегация индивидуальных выходов (max) и дефазификация методом центра тяжести
+            y_mamdani = []
+            for x in x_range:
+                # Масштабируем x к диапазону входной переменной модели
+                x_scaled = input_range_model[0] + (x - a) / (b - a) * (input_range_model[1] - input_range_model[0])
+                inputs = {input_var_name: x_scaled}
+                
+                # Используем inference_truth_level с импликацией Мамдани и агрегацией MAX
+                membership, x_out_range = engine.inference_truth_level(
+                    inputs, output_var, 
+                    impl_type=ImplicationType.MAMDANI, 
+                    agg_type=AggregationType.MAX
+                )
+                # Дефазификация методом центра тяжести
+                output = engine.defuzzify_centroid(membership, x_out_range)
+                # Масштабируем выход модели к диапазону исходной функции
+                output_scaled = y_min + (output - output_range_model[0]) / (output_range_model[1] - output_range_model[0]) * (y_max - y_min)
+                y_mamdani.append(output_scaled)
+            y_mamdani = np.array(y_mamdani)
+            
+            # ===== МОДЕЛЬ ТАКАГИ-СУГЕНО =====
+            # Алгоритм:
+            # 1. Вычисление уровней истинности предпосылок для каждого правила
+            # 2. Вычисление выходов для каждого правила на основе импликации (prod для Ларсена)
+            # 3. Агрегация индивидуальных выходов методом центра тяжести (взвешенная сумма)
+            
+            # Создаём функции для правил
+            # Для Такаги-Сугено функции правил должны возвращать значения в масштабе выходной переменной модели
+            rule_functions = {}
+            for rule_idx, rule in enumerate(rules_filtered):
+                # Находим центр терма входной переменной
+                input_term_name = rule.conditions[input_var_name]
+                input_term = input_var.terms[input_term_name]
+                
+                # Находим центр терма (максимум функции принадлежности)
+                x_input_range = np.linspace(input_var.min_val, input_var.max_val, 100)
+                memberships = np.array([input_term.membership(x) for x in x_input_range])
+                center_idx = np.argmax(memberships)
+                x_center_model = x_input_range[center_idx]
+                
+                # Масштабируем центр обратно к исходному диапазону [a, b]
+                x_center = a + (x_center_model - input_range_model[0]) / (input_range_model[1] - input_range_model[0]) * (b - a)
+                
+                # Вычисляем значение исходной функции в центре
+                y_center_original = func(x_center)
+                
+                # Масштабируем значение исходной функции к диапазону выходной переменной модели
+                y_center_model = output_range_model[0] + (y_center_original - y_min) / (y_max - y_min) * (output_range_model[1] - output_range_model[0])
+                
+                # Создаём функцию правила, которая возвращает значение в масштабе выходной переменной модели
+                def make_rule_func(rule_idx_val, yc_model, input_min, input_max, output_min, output_max, a_val, b_val, y_min_val, y_max_val, func_ref):
+                    def rule_func(x_model):
+                        # Масштабируем x_model обратно к [a, b]
+                        x_orig = a_val + (x_model - input_min) / (input_max - input_min) * (b_val - a_val)
+                        # Вычисляем значение исходной функции
+                        y_orig = func_ref(x_orig)
+                        # Масштабируем к диапазону выходной переменной модели
+                        y_model = output_min + (y_orig - y_min_val) / (y_max_val - y_min_val) * (output_max - output_min)
+                        return y_model
+                    return rule_func
+                
+                rule_functions[rule_idx] = make_rule_func(
+                    rule_idx, y_center_model, 
+                    input_range_model[0], input_range_model[1],
+                    output_range_model[0], output_range_model[1],
+                    a, b, y_min, y_max, func
+                )
+            
+            y_sugeno = []
+            for x in x_range:
+                # Масштабируем x к диапазону входной переменной модели
+                x_scaled = input_range_model[0] + (x - a) / (b - a) * (input_range_model[1] - input_range_model[0])
+                inputs = {input_var_name: x_scaled}
+                
+                # Для Такаги-Сугено используем prod для импликации (как Ларсен)
+                # inference_takagi_sugeno уже реализует взвешенную сумму
+                output = engine.inference_takagi_sugeno(
+                    inputs, output_var, rule_functions, agg_type=AggregationType.MAX
+                )
+                # Масштабируем выход модели к диапазону исходной функции
+                output_scaled = y_min + (output - output_range_model[0]) / (output_range_model[1] - output_range_model[0]) * (y_max - y_min)
+                y_sugeno.append(output_scaled)
+            y_sugeno = np.array(y_sugeno)
+            
+            # Сохраняем результаты
+            self.part2_data = {
+                'x_range': x_range,
+                'y_original': y_original,
+                'y_mamdani': y_mamdani,
+                'y_sugeno': y_sugeno,
+                'func': func,
+                'a': a,
+                'b': b,
+                'rules_count': len(rules_filtered)
+            }
+            
+            # Выводим результаты и строим графики
+            self._display_results_part2(func_str, a, b, resolution)
+            self._plot_comparison_part2()
+            self._plot_surfaces_part2()
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка вычисления моделей: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _display_results_part2(self, func_str, a, b, resolution):
+        """Отображение результатов вычислений"""
+        data = self.part2_data
+        y_original = data['y_original']
+        y_mamdani = data['y_mamdani']
+        y_sugeno = data['y_sugeno']
+        
+        # Вычисляем метрики
+        mse_mamdani = np.mean((y_original - y_mamdani) ** 2)
+        mse_sugeno = np.mean((y_original - y_sugeno) ** 2)
+        mae_mamdani = np.mean(np.abs(y_original - y_mamdani))
+        mae_sugeno = np.mean(np.abs(y_original - y_sugeno))
+        
         self.ui.resultTextPart2.clear()
-        self.ui.resultTextPart2.append("Функционал построения моделей будет реализован в следующем этапе.")
-        QMessageBox.information(self, "Информация", "Функционал построения моделей будет реализован позже.")
+        self.ui.resultTextPart2.append(f"Функция: y = {func_str}")
+        self.ui.resultTextPart2.append(f"Интервал: [{a:.2f}, {b:.2f}]")
+        self.ui.resultTextPart2.append(f"Количество правил: {data['rules_count']}")
+        self.ui.resultTextPart2.append(f"Разрешение: {resolution}")
+        self.ui.resultTextPart2.append("\n" + "="*50)
+        self.ui.resultTextPart2.append("РЕЗУЛЬТАТЫ ВЫЧИСЛЕНИЙ:\n")
+        self.ui.resultTextPart2.append(f"Модель Мамдани:")
+        self.ui.resultTextPart2.append(f"  MSE (среднеквадратичная ошибка): {mse_mamdani:.6f}")
+        self.ui.resultTextPart2.append(f"  MAE (средняя абсолютная ошибка): {mae_mamdani:.6f}")
+        self.ui.resultTextPart2.append(f"\nМодель Такаги-Сугено:")
+        self.ui.resultTextPart2.append(f"  MSE (среднеквадратичная ошибка): {mse_sugeno:.6f}")
+        self.ui.resultTextPart2.append(f"  MAE (средняя абсолютная ошибка): {mae_sugeno:.6f}")
+    
+    def _plot_comparison_part2(self):
+        """Построение графика сравнения моделей с исходной функцией"""
+        if not hasattr(self, 'part2_data'):
+            return
+        
+        data = self.part2_data
+        x = data['x_range']
+        y_original = data['y_original']
+        y_mamdani = data['y_mamdani']
+        y_sugeno = data['y_sugeno']
+        
+        # Создаём 3 подграфика: сверху сравнение (2 столбца), снизу 2 поверхности
+        self.plot_widget_part2.figure.clear()
+        
+        # Верхний график: сравнение (занимает 2 столбца)
+        ax1 = self.plot_widget_part2.figure.add_subplot(211)
+        ax1.plot(x, y_original, 'b-', linewidth=2, label='Исходная функция', alpha=0.8)
+        ax1.plot(x, y_mamdani, 'r--', linewidth=2, label='Модель Мамдани', alpha=0.8)
+        ax1.plot(x, y_sugeno, 'g:', linewidth=2, label='Модель Такаги-Сугено', alpha=0.8)
+        ax1.set_xlabel('x')
+        ax1.set_ylabel('y')
+        ax1.set_title('Сравнение моделей с исходной функцией')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        self.plot_widget_part2.figure.tight_layout()
+        self.plot_widget_part2.canvas.draw()
+    
+    def _plot_surfaces_part2(self):
+        """Построение поверхностей отображения для обеих моделей"""
+        if not hasattr(self, 'part2_data'):
+            return
+        
+        data = self.part2_data
+        x = data['x_range']
+        y_mamdani = data['y_mamdani']
+        y_sugeno = data['y_sugeno']
+        num_rules = data['rules_count']
+        
+        # Создаём поверхности отображения: x, количество правил, y
+        # X - входное значение x
+        # Y - количество правил (от 1 до num_rules)
+        # Z - выходное значение y модели
+        
+        # Создаём сетку для поверхности
+        num_points = len(x)
+        rules_range = np.arange(1, num_rules + 1)
+        
+        # Создаём 2D сетку
+        X_mamdani, Y_mamdani = np.meshgrid(x, rules_range)
+        X_sugeno, Y_sugeno = np.meshgrid(x, rules_range)
+        
+        # Z координата - выходное значение y модели (одинаковое для всех правил, так как мы используем все правила)
+        Z_mamdani = np.tile(y_mamdani, (num_rules, 1))
+        Z_sugeno = np.tile(y_sugeno, (num_rules, 1))
+        
+        # Нижний левый график: поверхность Мамдани
+        ax2 = self.plot_widget_part2.figure.add_subplot(223, projection='3d')
+        ax2.plot_surface(X_mamdani, Y_mamdani, Z_mamdani, cmap='viridis', alpha=0.7, linewidth=0, antialiased=True)
+        ax2.plot(x, np.ones_like(x), y_mamdani, 'r-', linewidth=2, label='Модель Мамдани')
+        ax2.set_xlabel('x')
+        ax2.set_ylabel('Количество правил')
+        ax2.set_zlabel('y')
+        ax2.set_title('Поверхность отображения: Мамдани')
+        
+        # Нижний правый график: поверхность Такаги-Сугено
+        ax3 = self.plot_widget_part2.figure.add_subplot(224, projection='3d')
+        ax3.plot_surface(X_sugeno, Y_sugeno, Z_sugeno, cmap='plasma', alpha=0.7, linewidth=0, antialiased=True)
+        ax3.plot(x, np.ones_like(x), y_sugeno, 'g-', linewidth=2, label='Модель Такаги-Сугено')
+        ax3.set_xlabel('x')
+        ax3.set_ylabel('Количество правил')
+        ax3.set_zlabel('y')
+        ax3.set_title('Поверхность отображения: Такаги-Сугено')
+        
+        self.plot_widget_part2.figure.tight_layout()
+        self.plot_widget_part2.canvas.draw()
 
-    def compare_models_part2(self):
-        """Сравнение моделей с исходной функцией для части 2"""
-        self.ui.resultTextPart2.clear()
-        self.ui.resultTextPart2.append("Функционал сравнения моделей будет реализован в следующем этапе.")
-        QMessageBox.information(self, "Информация", "Функционал сравнения моделей будет реализован позже.")
-
-    def plot_surfaces_part2(self):
-        """Построение поверхностей для части 2"""
-        self.ui.resultTextPart2.clear()
-        self.ui.resultTextPart2.append("Функционал построения поверхностей будет реализован в следующем этапе.")
-        QMessageBox.information(self, "Информация", "Функционал построения поверхностей будет реализован позже.")
 
 
 def main():
